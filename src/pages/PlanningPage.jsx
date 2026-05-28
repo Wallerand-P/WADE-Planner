@@ -6,6 +6,7 @@ import {
   DISCIPLINE_ORDER, DISCIPLINE_DURATIONS, DISCIPLINE_META,
   getSortedSlots, getScheduledMinutes, formatDuration,
 } from '../lib/raceUtils'
+import { generatePlan } from '../lib/generatePlan'
 import Layout from '../components/Layout'
 
 export default function PlanningPage() {
@@ -22,6 +23,10 @@ export default function PlanningPage() {
   const [editingId, setEditingId] = useState(null)
   const [editAthlete, setEditAthlete] = useState('')
   const [editDuration, setEditDuration] = useState('')
+
+  // Auto-fill
+  const [autoFilling, setAutoFilling] = useState(false)
+  const [confirmAutoFill, setConfirmAutoFill] = useState(false)
 
   const meta = DISCIPLINE_META[activeTab]
   const disciplineSlots = getSortedSlots(slots).filter(s => s.discipline === activeTab)
@@ -54,6 +59,58 @@ export default function PlanningPage() {
 
   function switchTab(d) {
     setActiveTab(d)
+    setConfirmAutoFill(false)
+  }
+
+  // Athlete who did the last loop of the discipline before `discipline` (or null)
+  function previousDisciplineLastAthlete(discipline) {
+    const idx = DISCIPLINE_ORDER.indexOf(discipline)
+    if (idx <= 0) return null
+    const prevSlots = getSortedSlots(slots).filter(s => s.discipline === DISCIPLINE_ORDER[idx - 1])
+    return prevSlots.length > 0 ? prevSlots[prevSlots.length - 1].athlete_id : null
+  }
+
+  async function autoFill() {
+    setConfirmAutoFill(false)
+    setAutoFilling(true)
+    setError('')
+    try {
+      const planAthletes = athletes.map(a => ({
+        id: a.id,
+        name: a.name,
+        loopDuration: Number(a[`${activeTab}_pace`]),
+      }))
+      const order = generatePlan(
+        planAthletes,
+        { totalDuration: DISCIPLINE_DURATIONS[activeTab] },
+        previousDisciplineLastAthlete(activeTab)
+      )
+
+      // Replace this discipline's slots with the generated plan
+      await supabase.from('schedule_slots').delete().eq('room_code', roomCode).eq('discipline', activeTab)
+      const rows = order.map((athleteId, i) => ({
+        room_code: roomCode,
+        discipline: activeTab,
+        slot_order: i + 1,
+        athlete_id: athleteId,
+        planned_duration_minutes: Number(athletes.find(a => a.id === athleteId)[`${activeTab}_pace`]),
+      }))
+      const { data, error: err } = rows.length
+        ? await supabase.from('schedule_slots').insert(rows).select()
+        : { data: [], error: null }
+      if (err) throw err
+
+      setSlots([...slots.filter(s => s.discipline !== activeTab), ...data])
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setAutoFilling(false)
+    }
+  }
+
+  function onAutoFillClick() {
+    if (disciplineSlots.length > 0) setConfirmAutoFill(true)
+    else autoFill()
   }
 
   async function addSlot() {
@@ -210,6 +267,39 @@ export default function PlanningPage() {
           ))}
         </div>
       </div>
+
+      {/* Auto-fill */}
+      {confirmAutoFill ? (
+        <div className="bg-slate-800 border border-indigo-500 rounded-xl p-4 mb-4 space-y-3">
+          <p className="text-sm text-slate-300">
+            Replace the {disciplineSlots.length} existing {meta.label.toLowerCase()} slot(s) with an
+            auto-generated plan?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={autoFill}
+              disabled={autoFilling}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+            >
+              {autoFilling ? 'Generating…' : 'Replace'}
+            </button>
+            <button
+              onClick={() => setConfirmAutoFill(false)}
+              className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={onAutoFillClick}
+          disabled={autoFilling}
+          className="w-full mb-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-indigo-300 transition-colors"
+        >
+          {autoFilling ? 'Generating…' : `✨ Auto-fill ${meta.label}`}
+        </button>
+      )}
 
       {/* Slot list */}
       <div className="flex-1 space-y-2 mb-4 min-h-[80px]">
