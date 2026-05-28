@@ -5,7 +5,17 @@ export default {
     "./src/**/*.{js,jsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: [
+          '-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text',
+          'Segoe UI', 'Roboto', 'system-ui', 'sans-serif',
+        ],
+      },
+      letterSpacing: {
+        tightest: '-0.04em',
+      },
+    },
   },
   plugins: [],
 }

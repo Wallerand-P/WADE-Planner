@@ -101,39 +101,37 @@ export default function SetupPage() {
 
   return (
     <Layout title="Setup" roomCode={roomCode} showHome>
-      <div className="flex flex-col flex-1 gap-6">
+      <div className="flex flex-col flex-1 gap-6 animate-rise">
 
-        <div className="bg-slate-800/50 rounded-xl p-3">
-          <p className="text-xs text-slate-500 mb-1">Share this code with your teammates</p>
-          <p className="font-mono text-2xl font-bold tracking-widest text-indigo-400">{roomCode}</p>
+        <div className="card px-4 py-3.5">
+          <p className="text-[11px] text-white/40 mb-1">Share this code with your teammates</p>
+          <p className="font-mono text-2xl font-bold tracking-[0.3em] text-indigo-300">{roomCode}</p>
         </div>
 
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            Athletes &amp; paces (min / loop)
-          </h2>
+          <h2 className="label-eyebrow mb-3 px-1">Athletes &amp; paces (min / loop)</h2>
           <div className="space-y-3">
             {athletes.map((athlete, i) => (
-              <div key={i} className="bg-slate-800 rounded-xl p-4 space-y-3">
+              <div key={i} className="card p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full shrink-0" style={{ backgroundColor: athlete.color }} />
+                  <div className="w-9 h-9 rounded-full shrink-0 ring-2 ring-white/10" style={{ backgroundColor: athlete.color }} />
                   <input
                     value={athlete.name}
                     onChange={e => update(i, 'name', e.target.value)}
                     placeholder={`Athlete ${i + 1}`}
-                    className="flex-1 bg-slate-700 rounded-lg px-3 py-1.5 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="input-field flex-1 px-3 py-2 font-semibold"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {PACE_FIELDS.map(({ key, label, color }) => (
                     <div key={key}>
-                      <label className={`block text-xs ${color} mb-1`}>{label}</label>
+                      <label className={`block text-[11px] font-medium ${color} mb-1`}>{label}</label>
                       <input
                         type="number"
                         min={1}
                         value={athlete[key]}
                         onChange={e => update(i, key, e.target.value)}
-                        className="w-full bg-slate-700 rounded-lg px-2 py-1.5 text-center text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="input-field w-full px-2 py-2 text-center text-sm tabular-nums"
                       />
                     </div>
                   ))}
@@ -144,23 +142,21 @@ export default function SetupPage() {
         </section>
 
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            Race start time
-          </h2>
+          <h2 className="label-eyebrow mb-3 px-1">Race start time</h2>
           <input
             type="datetime-local"
             value={raceStart}
             onChange={e => setRaceStart(e.target.value)}
-            className="w-full bg-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="input-field w-full px-4 py-3.5"
           />
         </section>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-rose-400 text-sm">{error}</p>}
 
         <button
           onClick={save}
           disabled={saving}
-          className="mt-auto w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-2xl py-4 font-semibold text-lg transition-colors"
+          className="btn-primary mt-auto w-full py-4 text-lg"
         >
           {saving ? 'Saving…' : 'Continue to Planning →'}
         </button>

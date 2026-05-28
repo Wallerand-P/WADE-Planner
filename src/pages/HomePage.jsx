@@ -74,11 +74,13 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center px-6 py-10">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="min-h-screen text-white flex items-center justify-center px-6 py-12">
+      <div className="w-full max-w-sm space-y-9 animate-rise">
         <div className="text-center">
-          <h1 className="text-5xl font-black tracking-tighter mb-2">WADE</h1>
-          <p className="text-slate-400">T24 Relay Planner</p>
+          <h1 className="text-[64px] leading-none font-black tracking-tightest bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
+            WADE
+          </h1>
+          <p className="mt-3 text-sm text-white/45 tracking-wide">T24 Relay Planner</p>
         </div>
 
         <div className="space-y-4">
@@ -91,20 +93,20 @@ export default function HomePage() {
                 onKeyDown={e => e.key === 'Enter' && createRoom()}
                 placeholder="Room name"
                 maxLength={40}
-                className="w-full bg-slate-800 rounded-2xl px-4 py-3.5 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="input-field w-full px-4 py-4 text-center text-lg"
               />
-              <div className="flex gap-2">
+              <div className="flex gap-2.5">
                 <button
                   onClick={createRoom}
                   disabled={loading || !roomName.trim()}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl py-4 font-semibold text-lg transition-colors"
+                  className="btn-primary flex-1 py-4 text-lg"
                 >
                   {loading ? 'Creating…' : 'Create'}
                 </button>
                 <button
                   onClick={() => { setCreatingMode(false); setRoomName(''); setError('') }}
                   disabled={loading}
-                  className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-2xl px-5 font-semibold transition-colors"
+                  className="btn-secondary px-5"
                 >
                   Cancel
                 </button>
@@ -113,58 +115,58 @@ export default function HomePage() {
           ) : (
             <button
               onClick={() => { setError(''); setCreatingMode(true) }}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 rounded-2xl py-4 font-semibold text-lg transition-colors"
+              className="btn-primary w-full py-4 text-lg"
             >
               Create Room
             </button>
           )}
 
-          <div className="flex items-center gap-3 text-slate-600">
-            <div className="flex-1 h-px bg-slate-700" />
-            <span className="text-sm">or join</span>
-            <div className="flex-1 h-px bg-slate-700" />
+          <div className="flex items-center gap-3 text-white/30">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs tracking-wide">or join</span>
+            <div className="flex-1 h-px bg-white/10" />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2.5">
             <input
               value={joinCode}
               onChange={e => setJoinCode(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && enterRoom(joinCode)}
               placeholder="ROOM CODE"
               maxLength={8}
-              className="flex-1 min-w-0 bg-slate-800 rounded-2xl px-4 py-4 text-center font-mono text-xl tracking-widest placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="input-field flex-1 min-w-0 px-4 py-4 text-center font-mono text-xl tracking-[0.3em]"
             />
             <button
               onClick={() => enterRoom(joinCode)}
               disabled={loading}
-              className="shrink-0 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-2xl px-5 font-semibold transition-colors"
+              className="btn-secondary shrink-0 px-5"
             >
               Join
             </button>
           </div>
 
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          {error && <p className="text-rose-400 text-sm text-center">{error}</p>}
         </div>
 
         {recentRooms.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Your rooms</p>
+          <div className="space-y-2.5">
+            <p className="label-eyebrow px-1">Your rooms</p>
             {recentRooms.map(r => (
               <div
                 key={r.code}
-                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+                className="card-inset flex items-center transition-colors hover:bg-white/[0.055]"
               >
                 <button
                   onClick={() => enterRoom(r.code)}
                   disabled={loading}
-                  className="flex-1 flex items-center gap-3 px-4 py-3 text-left disabled:opacity-50"
+                  className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3.5 text-left disabled:opacity-50"
                 >
-                  <span className="flex-1 font-medium truncate">{r.name || 'Untitled room'}</span>
-                  <span className="font-mono text-xs text-slate-500 tracking-widest">{r.code}</span>
+                  <span className="flex-1 min-w-0 font-medium truncate">{r.name || 'Untitled room'}</span>
+                  <span className="font-mono text-[11px] text-white/40 tracking-[0.2em] shrink-0">{r.code}</span>
                 </button>
                 <button
                   onClick={() => removeRecentRoom(r.code)}
-                  className="px-3 py-3 text-slate-500 hover:text-red-300 transition-colors"
+                  className="shrink-0 w-10 h-10 mr-1 flex items-center justify-center rounded-full text-white/30 hover:text-rose-300 hover:bg-white/[0.06] transition-all"
                   title="Forget this room"
                 >
                   ✕

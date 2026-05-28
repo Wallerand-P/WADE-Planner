@@ -227,7 +227,7 @@ export default function PlanningPage() {
   return (
     <Layout title="Planning" roomCode={roomCode} showHome backTo={room?.status === 'racing' ? '/race' : '/setup'}>
       {/* Discipline tabs */}
-      <div className="flex gap-2 mb-5">
+      <div className="flex gap-1 p-1 mb-5 rounded-2xl bg-white/[0.04] border border-white/10">
         {DISCIPLINE_ORDER.map(d => {
           const m = DISCIPLINE_META[d]
           const done = getScheduledMinutes(slots, d) >= DISCIPLINE_DURATIONS[d] - 5
@@ -236,51 +236,51 @@ export default function PlanningPage() {
             <button
               key={d}
               onClick={() => switchTab(d)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                active ? `${m.badge} text-white` : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                active ? `${m.badge} text-white shadow-lg` : 'text-white/45 hover:text-white/80'
               }`}
             >
-              {m.short} {done ? '✓' : ''}
+              {m.short}{done ? ' ✓' : ''}
             </button>
           )
         })}
       </div>
 
-      {/* Progress bar */}
-      <div className={`rounded-xl p-4 mb-4 ${meta.bg}`}>
-        <div className="flex justify-between items-baseline mb-2">
+      {/* Progress card */}
+      <div className="card p-4 mb-4">
+        <div className="flex justify-between items-baseline mb-2.5">
           <span className={`font-semibold ${meta.text}`}>{meta.label}</span>
-          <span className={`text-sm ${remaining <= 0 ? 'text-green-400' : 'text-slate-300'}`}>
+          <span className={`text-sm ${remaining <= 0 ? 'text-emerald-400' : 'text-white/55'}`}>
             {remaining <= 0
               ? '✓ Fully scheduled'
               : `${formatDuration(remaining)} remaining`}
           </span>
         </div>
         {/* Stacked bar — one segment per slot, colored by athlete */}
-        <div className="w-full bg-slate-700 rounded-full h-2.5 flex overflow-hidden">
+        <div className="w-full bg-white/10 rounded-full h-2.5 flex overflow-hidden">
           {disciplineSlots.map((slot, i) => {
             const a = athletes.find(x => x.id === slot.athlete_id)
             const pct = (Number(slot.planned_duration_minutes) / total) * 100
             return (
               <div
                 key={slot.id}
-                className={`h-full ${i < disciplineSlots.length - 1 ? 'border-r border-slate-900/40' : ''}`}
+                className={`h-full ${i < disciplineSlots.length - 1 ? 'border-r border-black/30' : ''}`}
                 style={{ width: `${pct}%`, backgroundColor: a?.color }}
               />
             )
           })}
         </div>
-        <p className="text-xs text-slate-500 mt-1.5">
+        <p className="text-xs text-white/35 mt-2 tabular-nums">
           {formatDuration(scheduled)} of {formatDuration(total)} target
         </p>
 
         {/* Per-athlete volume in this discipline */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3.5 pt-3.5 border-t border-white/[0.07]">
           {volumeByAthlete.map(v => (
             <div key={v.id} className="flex items-center gap-1.5 text-xs">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: v.color }} />
-              <span className="text-slate-300">{v.name}</span>
-              <span className="text-slate-500 font-mono">{formatDuration(v.byDisc[activeTab])}</span>
+              <span className="text-white/70">{v.name}</span>
+              <span className="text-white/35 font-mono tabular-nums">{formatDuration(v.byDisc[activeTab])}</span>
             </div>
           ))}
         </div>
@@ -289,7 +289,7 @@ export default function PlanningPage() {
       {/* Slot list */}
       <div className="flex-1 space-y-2 mb-4 min-h-[80px]">
         {disciplineSlots.length === 0 ? (
-          <p className="text-slate-600 text-sm text-center py-6">
+          <p className="text-white/30 text-sm text-center py-6">
             No slots yet — add the first one below.
           </p>
         ) : (
@@ -299,12 +299,12 @@ export default function PlanningPage() {
 
             if (isEditing) {
               return (
-                <div key={slot.id} className="bg-slate-800 rounded-lg p-3 space-y-2 ring-2 ring-indigo-500">
+                <div key={slot.id} className="card-inset p-3 space-y-2.5 ring-2 ring-indigo-400/60">
                   <div className="flex gap-2">
                     <select
                       value={editAthlete}
                       onChange={e => setEditAthlete(e.target.value)}
-                      className="flex-1 bg-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="input-field flex-1 px-3 py-2"
                     >
                       {athletes.map(x => (
                         <option key={x.id} value={x.id}>{x.name}</option>
@@ -316,61 +316,33 @@ export default function PlanningPage() {
                         min={1}
                         value={editDuration}
                         onChange={e => setEditDuration(e.target.value)}
-                        className="w-16 bg-slate-700 rounded-lg px-2 py-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="input-field w-16 px-2 py-2 text-center tabular-nums"
                       />
-                      <span className="text-slate-500 text-xs">min</span>
+                      <span className="text-white/35 text-xs">min</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => saveEdit(slot)}
-                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg py-2 text-sm font-semibold transition-colors"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-lg py-2 text-sm font-semibold transition-colors"
-                    >
-                      Cancel
-                    </button>
+                    <button onClick={() => saveEdit(slot)} className="btn-primary flex-1 py-2 text-sm">Save</button>
+                    <button onClick={() => setEditingId(null)} className="btn-secondary flex-1 py-2 text-sm">Cancel</button>
                   </div>
                 </div>
               )
             }
 
-            const btn = 'w-7 h-7 flex items-center justify-center rounded-md text-slate-400 transition-colors disabled:opacity-25 disabled:cursor-not-allowed'
+            const btn = 'w-7 h-7 flex items-center justify-center rounded-lg text-white/45 transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed'
             return (
-              <div key={slot.id} className="bg-slate-800 rounded-lg pl-3 pr-2 py-2 flex items-center gap-2">
-                <span className="text-slate-600 text-sm w-4 shrink-0">{i + 1}</span>
+              <div key={slot.id} className="card-inset pl-3 pr-2 py-2 flex items-center gap-2">
+                <span className="text-white/30 text-sm w-4 shrink-0 tabular-nums">{i + 1}</span>
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a?.color }} />
                 <span className="flex-1 font-medium truncate">{a?.name ?? '?'}</span>
-                <span className="text-slate-400 text-sm font-mono mr-1">
+                <span className="text-white/45 text-sm font-mono mr-1 tabular-nums">
                   {formatDuration(slot.planned_duration_minutes)}
                 </span>
                 <div className="flex items-center gap-0.5 shrink-0">
-                  <button
-                    onClick={() => moveSlot(slot, 'up')}
-                    disabled={i === 0}
-                    className={`${btn} hover:bg-slate-700`}
-                    title="Move up"
-                  >↑</button>
-                  <button
-                    onClick={() => moveSlot(slot, 'down')}
-                    disabled={i === disciplineSlots.length - 1}
-                    className={`${btn} hover:bg-slate-700`}
-                    title="Move down"
-                  >↓</button>
-                  <button
-                    onClick={() => startEdit(slot)}
-                    className={`${btn} hover:bg-slate-700 hover:text-white`}
-                    title="Edit"
-                  >✎</button>
-                  <button
-                    onClick={() => deleteSlot(slot)}
-                    className={`${btn} hover:bg-red-900/60 hover:text-red-300`}
-                    title="Delete"
-                  >✕</button>
+                  <button onClick={() => moveSlot(slot, 'up')} disabled={i === 0} className={`${btn} hover:bg-white/10 hover:text-white`} title="Move up">↑</button>
+                  <button onClick={() => moveSlot(slot, 'down')} disabled={i === disciplineSlots.length - 1} className={`${btn} hover:bg-white/10 hover:text-white`} title="Move down">↓</button>
+                  <button onClick={() => startEdit(slot)} className={`${btn} hover:bg-white/10 hover:text-white`} title="Edit">✎</button>
+                  <button onClick={() => deleteSlot(slot)} className={`${btn} hover:bg-rose-500/20 hover:text-rose-300`} title="Delete">✕</button>
                 </div>
               </div>
             )
@@ -379,13 +351,13 @@ export default function PlanningPage() {
       </div>
 
       {/* Add slot panel */}
-      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
-        <p className="text-sm font-semibold text-slate-300">Add next slot</p>
+      <div className="card p-4 space-y-3">
+        <p className="label-eyebrow">Add next slot</p>
         <div className="grid grid-cols-2 gap-2">
           <select
             value={selAthlete}
             onChange={e => setSelAthlete(e.target.value)}
-            className="bg-slate-700 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="input-field px-3 py-3"
           >
             {athletes.map(a => (
               <option key={a.id} value={a.id}>{a.name}</option>
@@ -398,44 +370,37 @@ export default function PlanningPage() {
               value={selDuration}
               onChange={e => setSelDuration(e.target.value)}
               placeholder="min"
-              className="w-full bg-slate-700 rounded-xl px-3 py-3 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="input-field w-full px-3 py-3 text-center tabular-nums"
             />
-            <span className="text-slate-500 text-xs shrink-0">min</span>
+            <span className="text-white/35 text-xs shrink-0">min</span>
           </div>
         </div>
         <button
           onClick={addSlot}
           disabled={saving || !selAthlete || !selDuration}
-          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl py-3 font-semibold transition-colors"
+          className="btn-primary w-full py-3"
         >
           + Add Slot
         </button>
-        {error && <p className="text-red-400 text-xs">{error}</p>}
+        {error && <p className="text-rose-400 text-xs">{error}</p>}
       </div>
 
       {/* Auto-fill (disabled once the race has started) */}
       {racing ? (
-        <p className="w-full mt-4 text-center text-xs text-slate-600">
+        <p className="w-full mt-4 text-center text-xs text-white/30">
           Auto-fill is disabled during the race
         </p>
       ) : confirmAutoFill ? (
-        <div className="bg-slate-800 border border-indigo-500 rounded-xl p-4 mt-4 space-y-3">
-          <p className="text-sm text-slate-300">
+        <div className="card p-4 mt-4 space-y-3 ring-2 ring-indigo-400/50">
+          <p className="text-sm text-white/70">
             Replace the {disciplineSlots.length} existing {meta.label.toLowerCase()} slot(s) with an
             auto-generated plan?
           </p>
           <div className="flex gap-2">
-            <button
-              onClick={autoFill}
-              disabled={autoFilling}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg py-2.5 text-sm font-semibold transition-colors"
-            >
+            <button onClick={autoFill} disabled={autoFilling} className="btn-primary flex-1 py-2.5 text-sm">
               {autoFilling ? 'Generating…' : 'Replace'}
             </button>
-            <button
-              onClick={() => setConfirmAutoFill(false)}
-              className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-lg py-2.5 text-sm font-semibold transition-colors"
-            >
+            <button onClick={() => setConfirmAutoFill(false)} className="btn-secondary flex-1 py-2.5 text-sm">
               Cancel
             </button>
           </div>
@@ -444,7 +409,7 @@ export default function PlanningPage() {
         <button
           onClick={onAutoFillClick}
           disabled={autoFilling}
-          className="w-full mt-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-indigo-300 transition-colors"
+          className="btn-secondary w-full mt-4 py-3 text-sm text-indigo-200"
         >
           {autoFilling ? 'Generating…' : `✨ Auto-fill ${meta.label}`}
         </button>
@@ -453,29 +418,18 @@ export default function PlanningPage() {
       {/* Full schedule */}
       <button
         onClick={() => navigate('/schedule')}
-        className="w-full mt-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-slate-300 transition-colors"
+        className="btn-secondary w-full mt-3 py-3 text-sm"
       >
         📋 Full schedule
       </button>
 
       {/* Launch / resume button */}
       {room?.status === 'racing' ? (
-        <button
-          onClick={() => navigate('/race')}
-          className="w-full mt-4 rounded-2xl py-4 font-semibold text-lg bg-green-600 hover:bg-green-500 transition-colors"
-        >
+        <button onClick={() => navigate('/race')} className="btn-success w-full mt-4 py-4 text-lg">
           Resume race →
         </button>
       ) : (
-        <button
-          onClick={launchRace}
-          disabled={!allFilled}
-          className={`w-full mt-4 rounded-2xl py-4 font-semibold text-lg transition-colors ${
-            allFilled
-              ? 'bg-green-600 hover:bg-green-500'
-              : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-          }`}
-        >
+        <button onClick={launchRace} disabled={!allFilled} className="btn-success w-full mt-4 py-4 text-lg">
           {allFilled ? 'Launch Race →' : 'Fill all disciplines to launch'}
         </button>
       )}

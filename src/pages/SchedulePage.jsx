@@ -49,11 +49,11 @@ export default function SchedulePage() {
   return (
     <Layout title="Schedule" roomCode={roomCode} showHome backTo={racing ? '/race' : '/planning'}>
       {sorted.length === 0 ? (
-        <p className="text-slate-500 text-center py-10">No schedule yet.</p>
+        <p className="text-white/40 text-center py-10">No schedule yet.</p>
       ) : (
-        <div className="space-y-5 flex-1">
+        <div className="space-y-6 flex-1 animate-rise">
           {!hasClock && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-white/40">
               Times are relative to the race start (set it on the Setup page for clock times).
             </p>
           )}
@@ -64,12 +64,12 @@ export default function SchedulePage() {
             const m = DISCIPLINE_META[disc]
             return (
               <div key={disc}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`w-2.5 h-2.5 rounded-sm ${m.badge}`} />
-                  <h2 className={`text-sm font-semibold uppercase tracking-wider ${m.text}`}>
+                <div className="flex items-center gap-2 mb-2.5 px-1">
+                  <span className={`w-2.5 h-2.5 rounded-[3px] ${m.badge}`} />
+                  <h2 className={`text-sm font-semibold uppercase tracking-[0.12em] ${m.text}`}>
                     {m.label}
                   </h2>
-                  <span className="text-xs text-slate-500 font-mono">
+                  <span className="text-xs text-white/30 font-mono tabular-nums">
                     from {timeLabel(startTimes[dslots[0].id])}
                   </span>
                 </div>
@@ -81,26 +81,26 @@ export default function SchedulePage() {
                     return (
                       <div
                         key={slot.id}
-                        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
+                        className={`flex items-center gap-3 rounded-2xl px-3.5 py-3 border transition-colors ${
                           isCurrent
-                            ? 'bg-slate-700 ring-2 ring-green-500'
+                            ? 'bg-white/[0.08] border-emerald-400/60 ring-1 ring-emerald-400/40'
                             : done
-                              ? 'bg-slate-800/50 opacity-60'
-                              : 'bg-slate-800'
+                              ? 'bg-white/[0.02] border-white/[0.05] opacity-55'
+                              : 'bg-white/[0.045] border-white/10'
                         }`}
                       >
-                        <span className="font-mono text-sm tabular-nums w-14 shrink-0 text-slate-300">
+                        <span className="font-mono text-sm tabular-nums w-14 shrink-0 text-white/70">
                           {timeLabel(startTimes[slot.id])}
                         </span>
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a?.color }} />
                         <span className="flex-1 font-medium truncate">{a?.name ?? '?'}</span>
                         {isCurrent && (
-                          <span className="text-[10px] font-bold text-green-400 bg-green-500/15 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full">
                             NOW
                           </span>
                         )}
-                        {done && <span className="text-green-400 text-sm">✓</span>}
-                        <span className="text-slate-500 text-xs font-mono w-12 text-right shrink-0">
+                        {done && <span className="text-emerald-400 text-sm">✓</span>}
+                        <span className="text-white/35 text-xs font-mono w-12 text-right shrink-0 tabular-nums">
                           {formatDuration(slot.planned_duration_minutes)}
                         </span>
                       </div>
@@ -112,8 +112,8 @@ export default function SchedulePage() {
           })}
 
           {finishMs && (
-            <div className="text-center text-sm text-slate-400 pt-1">
-              Estimated finish · <span className="font-mono text-slate-200">{timeLabel(finishMs)}</span>
+            <div className="text-center text-sm text-white/45 pt-1">
+              Estimated finish · <span className="font-mono text-white/80 tabular-nums">{timeLabel(finishMs)}</span>
             </div>
           )}
         </div>

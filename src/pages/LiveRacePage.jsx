@@ -43,10 +43,10 @@ export default function LiveRacePage() {
 
   if (!roomCode || !room?.race_start_time) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center px-6">
-        <div className="text-center space-y-4">
-          <p className="text-slate-400">No active race. Check your room code.</p>
-          <button onClick={() => navigate('/')} className="bg-indigo-600 rounded-xl px-6 py-3">
+      <div className="min-h-screen text-white flex items-center justify-center px-6">
+        <div className="text-center space-y-5">
+          <p className="text-white/50">No active race. Check your room code.</p>
+          <button onClick={() => navigate('/')} className="btn-primary px-6 py-3">
             Go Home
           </button>
         </div>
@@ -142,42 +142,43 @@ export default function LiveRacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      <div className="max-w-md mx-auto px-4 pt-6 pb-10 flex flex-col gap-4">
+    <div className="min-h-screen text-white">
+      <div className="max-w-md mx-auto px-5 pt-[max(1.75rem,env(safe-area-inset-top))] pb-12 flex flex-col gap-4">
 
         {/* Race clock */}
-        <div className="text-center">
-          <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Race Time</p>
-          <p className="font-mono text-5xl font-black tabular-nums">
+        <div className="text-center py-2">
+          <p className="label-eyebrow mb-1.5">Race Time</p>
+          <p className="font-mono text-6xl font-bold tabular-nums tracking-tight">
             {formatCountdown(raceElapsed)}
           </p>
-          <p className="text-xs text-slate-600 mt-1">
+          <p className="text-xs text-white/35 mt-1.5">
             Started {dayjs(room.race_start_time).format('HH:mm')}
           </p>
         </div>
 
         {/* Current slot card */}
         {currentSlot && currentAthlete ? (
-          <div className={`rounded-2xl p-5 border ${currentMeta.bg} ${currentMeta.border}`}>
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-3 ${currentMeta.text}`}>
-              Now Racing · {currentMeta.label}
+          <div className="card p-5 relative overflow-hidden">
+            <div className={`absolute inset-x-0 top-0 h-[3px] ${currentMeta.badge}`} />
+            <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] mb-4 ${currentMeta.text}`}>
+              ● Now Racing · {currentMeta.label}
             </p>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full shrink-0 border-2 border-white/20"
+            <div className="flex items-center gap-3.5 mb-5">
+              <div className="w-12 h-12 rounded-full shrink-0 ring-2 ring-white/15"
                 style={{ backgroundColor: currentAthlete.color }} />
-              <div className="flex-1">
-                <p className="text-2xl font-bold leading-tight">{currentAthlete.name}</p>
-                <p className="text-slate-400 text-sm">
+              <div className="flex-1 min-w-0">
+                <p className="text-2xl font-bold leading-tight tracking-tight truncate">{currentAthlete.name}</p>
+                <p className="text-white/40 text-sm">
                   Slot {currentIndex + 1} of {sortedSlots.length}
                 </p>
               </div>
               <div className="text-right">
                 <p className={`font-mono text-3xl font-bold tabular-nums ${
-                  timeRemaining < 0 ? 'text-red-400' : 'text-white'
+                  timeRemaining < 0 ? 'text-rose-400' : 'text-white'
                 }`}>
                   {formatCountdown(Math.abs(timeRemaining))}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-[11px] text-white/40">
                   {timeRemaining >= 0 ? 'remaining' : 'overtime'}
                 </p>
               </div>
@@ -185,57 +186,50 @@ export default function LiveRacePage() {
             {enteringFinish ? (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">
+                  <label className="block text-xs text-white/45 mb-1.5">
                     Finished at (started {dayjs(slotStartMs).format('HH:mm')})
                   </label>
                   <input
                     type="datetime-local"
                     value={finishTime}
                     onChange={e => setFinishTime(e.target.value)}
-                    className="w-full bg-slate-900/60 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="input-field w-full px-3 py-2.5 focus:ring-emerald-400/60"
                   />
                   {finishTime && dayjs(finishTime).valueOf() <= slotStartMs && (
-                    <p className="text-red-400 text-xs mt-1">Must be after the loop started</p>
+                    <p className="text-rose-400 text-xs mt-1.5">Must be after the loop started</p>
                   )}
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={confirmLoop}
                     disabled={confirming || dayjs(finishTime).valueOf() <= slotStartMs}
-                    className="flex-1 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-xl py-3 font-semibold transition-colors"
+                    className="btn-success flex-1 py-3"
                   >
                     {confirming ? 'Confirming…' : 'Confirm ✓'}
                   </button>
-                  <button
-                    onClick={() => setEnteringFinish(false)}
-                    disabled={confirming}
-                    className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-xl px-5 font-semibold transition-colors"
-                  >
+                  <button onClick={() => setEnteringFinish(false)} disabled={confirming} className="btn-secondary px-5">
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <button
-                onClick={startFinishEntry}
-                className="w-full bg-green-600 hover:bg-green-500 rounded-xl py-3.5 font-semibold text-lg transition-colors"
-              >
+              <button onClick={startFinishEntry} className="btn-success w-full py-3.5 text-lg">
                 Confirm loop done ✓
               </button>
             )}
           </div>
         ) : (
-          <div className="rounded-2xl p-6 bg-slate-800 text-center">
-            <p className="text-slate-400 text-lg font-semibold">All loops completed!</p>
-            <p className="text-slate-500 text-sm mt-1">{formatCountdown(raceElapsed)} total</p>
+          <div className="card p-8 text-center">
+            <p className="text-xl font-bold tracking-tight">All loops completed</p>
+            <p className="text-white/40 text-sm mt-1.5 font-mono tabular-nums">{formatCountdown(raceElapsed)} total</p>
           </div>
         )}
 
         {/* Pace adjustment suggestion */}
         {suggestion && (
-          <div className="rounded-2xl p-4 bg-amber-900/30 border border-amber-600 space-y-3">
+          <div className="rounded-3xl p-4 bg-amber-500/[0.08] border border-amber-500/30 space-y-3">
             <p className="text-amber-300 font-semibold text-sm">Pace adjustment suggested</p>
-            <p className="text-slate-300 text-sm">
+            <p className="text-white/70 text-sm">
               This loop was{' '}
               <span className="font-semibold">{formatDuration(Math.abs(suggestion.delta))}</span>{' '}
               {suggestion.delta > 0 ? 'slower' : 'faster'} than planned.
@@ -256,14 +250,11 @@ export default function LiveRacePage() {
             <div className="flex gap-2">
               <button
                 onClick={applyAdjustment}
-                className="flex-1 bg-amber-600 hover:bg-amber-500 rounded-xl py-2.5 text-sm font-semibold transition-colors"
+                className="flex-1 bg-amber-500 hover:bg-amber-400 text-black rounded-xl py-2.5 text-sm font-semibold transition-all active:scale-[0.98]"
               >
                 Apply
               </button>
-              <button
-                onClick={() => setSuggestion(null)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-xl py-2.5 text-sm font-semibold transition-colors"
-              >
+              <button onClick={() => setSuggestion(null)} className="btn-secondary flex-1 py-2.5 text-sm">
                 Keep original
               </button>
             </div>
@@ -273,21 +264,18 @@ export default function LiveRacePage() {
         {/* Up next */}
         {nextSlots.length > 0 && (
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Up next</p>
+            <p className="label-eyebrow mb-2 px-1">Up next</p>
             <div className="space-y-2">
               {nextSlots.map(slot => {
                 const a = athletes.find(x => x.id === slot.athlete_id)
                 const m = DISCIPLINE_META[slot.discipline]
                 const timeUntilMs = startTimes[slot.id] - now
                 return (
-                  <div
-                    key={slot.id}
-                    className="bg-slate-800 rounded-xl px-4 py-3 flex items-center gap-3"
-                  >
+                  <div key={slot.id} className="card-inset px-4 py-3 flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a?.color }} />
-                    <span className="flex-1 font-medium">{a?.name}</span>
+                    <span className="flex-1 font-medium truncate">{a?.name}</span>
                     <span className={`text-xs ${m.text}`}>{m.short}</span>
-                    <span className="text-slate-400 text-sm font-mono tabular-nums">
+                    <span className="text-white/45 text-sm font-mono tabular-nums">
                       {timeUntilMs > 0 ? `in ${formatCountdown(timeUntilMs)}` : 'now'}
                     </span>
                   </div>
@@ -298,60 +286,45 @@ export default function LiveRacePage() {
         )}
 
         {/* Schedule + adjust plan */}
-        <div className="flex gap-2 mt-2">
-          <button
-            onClick={() => navigate('/schedule')}
-            className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-slate-300 transition-colors"
-          >
+        <div className="flex gap-2.5 mt-2">
+          <button onClick={() => navigate('/schedule')} className="btn-secondary flex-1 py-3 text-sm">
             📋 Schedule
           </button>
-          <button
-            onClick={() => navigate('/planning')}
-            className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-indigo-300 transition-colors"
-          >
+          <button onClick={() => navigate('/planning')} className="btn-secondary flex-1 py-3 text-sm text-indigo-200">
             ✎ Adjust plan
           </button>
         </div>
 
         {/* Home */}
-        <button
-          onClick={() => navigate('/')}
-          className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-slate-300 transition-colors"
-        >
+        <button onClick={() => navigate('/')} className="btn-secondary w-full py-3 text-sm">
           ⌂ Home
         </button>
 
         {/* End race */}
         {confirmEnd ? (
-          <div className="bg-slate-800 border border-red-500/60 rounded-xl p-4 space-y-3">
-            <p className="text-sm text-slate-300">End the race for everyone? You can still view the final schedule afterwards.</p>
+          <div className="card p-4 space-y-3 ring-1 ring-rose-500/40">
+            <p className="text-sm text-white/70">End the race for everyone? You can still view the final schedule afterwards.</p>
             <div className="flex gap-2">
               <button
                 onClick={endRace}
-                className="flex-1 bg-red-600 hover:bg-red-500 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+                className="flex-1 bg-rose-500 hover:bg-rose-400 text-white rounded-xl py-2.5 text-sm font-semibold transition-all active:scale-[0.98]"
               >
                 End race
               </button>
-              <button
-                onClick={() => setConfirmEnd(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-lg py-2.5 text-sm font-semibold transition-colors"
-              >
+              <button onClick={() => setConfirmEnd(false)} className="btn-secondary flex-1 py-2.5 text-sm">
                 Cancel
               </button>
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => setConfirmEnd(true)}
-            className="w-full bg-slate-800 hover:bg-red-900/40 border border-red-500/40 rounded-xl py-3 text-sm font-semibold text-red-300 transition-colors"
-          >
+          <button onClick={() => setConfirmEnd(true)} className="btn-danger w-full py-3 text-sm">
             End race
           </button>
         )}
 
         {/* Room code chip */}
         <div className="flex justify-center mt-2">
-          <span className="font-mono text-xs text-slate-600 bg-slate-800 px-3 py-1 rounded-full">
+          <span className="font-mono text-[11px] text-white/35 bg-white/[0.05] border border-white/10 px-3 py-1 rounded-full tracking-[0.2em]">
             {roomCode}
           </span>
         </div>
