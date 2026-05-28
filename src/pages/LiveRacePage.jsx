@@ -138,6 +138,15 @@ export default function LiveRacePage() {
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="max-w-md mx-auto px-4 pt-6 pb-10 flex flex-col gap-4">
 
+        {/* Home */}
+        <button
+          onClick={() => navigate('/')}
+          className="self-start text-slate-400 hover:text-white text-xl leading-none"
+          title="Home"
+        >
+          ⌂
+        </button>
+
         {/* Race clock */}
         <div className="text-center">
           <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Race Time</p>
