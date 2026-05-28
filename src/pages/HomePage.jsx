@@ -74,8 +74,27 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen text-white flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-sm space-y-9 animate-rise">
+    <div className="relative min-h-screen overflow-hidden text-white flex items-center justify-center px-6 py-12">
+      <svg aria-hidden className="home-liquid" viewBox="0 0 400 640" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="wadeLiquid" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#070610" />
+            <stop offset="26%" stopColor="#15102a" />
+            <stop offset="45%" stopColor="#553494" />
+            <stop offset="56%" stopColor="#c33f1e" />
+            <stop offset="65%" stopColor="#511610" />
+            <stop offset="100%" stopColor="#060510" />
+          </linearGradient>
+          <filter id="wadeWarp" x="-25%" y="-25%" width="150%" height="150%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.009 0.014" numOctaves="3" seed="11" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="185" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+        <rect x="-80" y="-80" width="560" height="800" fill="url(#wadeLiquid)" filter="url(#wadeWarp)" />
+      </svg>
+      <div aria-hidden className="home-grain" />
+      <div aria-hidden className="home-scrim" />
+      <div className="relative z-10 w-full max-w-sm space-y-9 animate-rise">
         <div className="text-center">
           <h1 className="text-[64px] leading-none font-black tracking-tightest bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
             WADE
