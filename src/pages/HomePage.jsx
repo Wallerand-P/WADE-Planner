@@ -16,11 +16,12 @@ export default function HomePage() {
   const [error, setError] = useState('')
 
   async function createRoom() {
+    const name = roomName.trim()
+    if (!name) { setError('Please name your room'); return }
     setLoading(true)
     setError('')
     try {
       const code = generateRoomCode()
-      const name = roomName.trim()
       const { error: err } = await supabase.from('rooms').insert({ code, name, status: 'setup' })
       if (err) throw err
       setRoomCode(code)
@@ -82,14 +83,15 @@ export default function HomePage() {
           <input
             value={roomName}
             onChange={e => setRoomName(e.target.value)}
-            placeholder="Room name (optional)"
+            onKeyDown={e => e.key === 'Enter' && createRoom()}
+            placeholder="Room name"
             maxLength={40}
             className="w-full bg-slate-800 rounded-2xl px-4 py-3.5 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           <button
             onClick={createRoom}
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-2xl py-4 font-semibold text-lg transition-colors"
+            disabled={loading || !roomName.trim()}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl py-4 font-semibold text-lg transition-colors"
           >
             {loading ? 'Creating…' : 'Create Room'}
           </button>
