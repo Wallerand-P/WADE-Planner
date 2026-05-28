@@ -18,6 +18,11 @@ export default function PlanningPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Inline slot editing
+  const [editingId, setEditingId] = useState(null)
+  const [editAthlete, setEditAthlete] = useState('')
+  const [editDuration, setEditDuration] = useState('')
+
   const meta = DISCIPLINE_META[activeTab]
   const disciplineSlots = getSortedSlots(slots).filter(s => s.discipline === activeTab)
   const scheduled = getScheduledMinutes(slots, activeTab)
@@ -77,11 +82,58 @@ export default function PlanningPage() {
     }
   }
 
-  async function removeLastSlot() {
-    const last = disciplineSlots[disciplineSlots.length - 1]
-    if (!last) return
-    const { error: err } = await supabase.from('schedule_slots').delete().eq('id', last.id)
-    if (!err) removeSlot(last.id)
+  async function reloadSlots() {
+    const { data } = await supabase.from('schedule_slots').select('*').eq('room_code', roomCode)
+    if (data) setSlots(data)
+  }
+
+  async function deleteSlot(slot) {
+    if (editingId === slot.id) setEditingId(null)
+    removeSlot(slot.id)
+    await supabase.from('schedule_slots').delete().eq('id', slot.id)
+    // Re-sequence remaining slots in this discipline so orders stay 1..n
+    const remaining = disciplineSlots.filter(s => s.id !== slot.id)
+    await Promise.all(
+      remaining
+        .map((s, idx) =>
+          s.slot_order === idx + 1
+            ? null
+            : supabase.from('schedule_slots').update({ slot_order: idx + 1 }).eq('id', s.id)
+        )
+        .filter(Boolean)
+    )
+    await reloadSlots()
+  }
+
+  async function moveSlot(slot, direction) {
+    const idx = disciplineSlots.findIndex(s => s.id === slot.id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= disciplineSlots.length) return
+    const other = disciplineSlots[swapIdx]
+    await Promise.all([
+      supabase.from('schedule_slots').update({ slot_order: other.slot_order }).eq('id', slot.id),
+      supabase.from('schedule_slots').update({ slot_order: slot.slot_order }).eq('id', other.id),
+    ])
+    await reloadSlots()
+  }
+
+  function startEdit(slot) {
+    setEditingId(slot.id)
+    setEditAthlete(slot.athlete_id)
+    setEditDuration(String(slot.planned_duration_minutes))
+  }
+
+  async function saveEdit(slot) {
+    if (!editAthlete || !editDuration) return
+    const { data, error: err } = await supabase
+      .from('schedule_slots')
+      .update({ athlete_id: editAthlete, planned_duration_minutes: Number(editDuration) })
+      .eq('id', slot.id)
+      .select()
+      .single()
+    if (err) { setError(err.message); return }
+    upsertSlot(data)
+    setEditingId(null)
   }
 
   async function launchRace() {
@@ -168,14 +220,83 @@ export default function PlanningPage() {
         ) : (
           disciplineSlots.map((slot, i) => {
             const a = athletes.find(x => x.id === slot.athlete_id)
+            const isEditing = editingId === slot.id
+
+            if (isEditing) {
+              return (
+                <div key={slot.id} className="bg-slate-800 rounded-lg p-3 space-y-2 ring-2 ring-indigo-500">
+                  <div className="flex gap-2">
+                    <select
+                      value={editAthlete}
+                      onChange={e => setEditAthlete(e.target.value)}
+                      className="flex-1 bg-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {athletes.map(x => (
+                        <option key={x.id} value={x.id}>{x.name}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={1}
+                        value={editDuration}
+                        onChange={e => setEditDuration(e.target.value)}
+                        className="w-16 bg-slate-700 rounded-lg px-2 py-2 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <span className="text-slate-500 text-xs">min</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => saveEdit(slot)}
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg py-2 text-sm font-semibold transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-lg py-2 text-sm font-semibold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
+            }
+
+            const btn = 'w-7 h-7 flex items-center justify-center rounded-md text-slate-400 transition-colors disabled:opacity-25 disabled:cursor-not-allowed'
             return (
-              <div key={slot.id} className="bg-slate-800 rounded-lg px-4 py-3 flex items-center gap-3">
-                <span className="text-slate-600 text-sm w-5 shrink-0">{i + 1}</span>
+              <div key={slot.id} className="bg-slate-800 rounded-lg pl-3 pr-2 py-2 flex items-center gap-2">
+                <span className="text-slate-600 text-sm w-4 shrink-0">{i + 1}</span>
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a?.color }} />
-                <span className="flex-1 font-medium">{a?.name ?? '?'}</span>
-                <span className="text-slate-400 text-sm font-mono">
+                <span className="flex-1 font-medium truncate">{a?.name ?? '?'}</span>
+                <span className="text-slate-400 text-sm font-mono mr-1">
                   {formatDuration(slot.planned_duration_minutes)}
                 </span>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    onClick={() => moveSlot(slot, 'up')}
+                    disabled={i === 0}
+                    className={`${btn} hover:bg-slate-700`}
+                    title="Move up"
+                  >↑</button>
+                  <button
+                    onClick={() => moveSlot(slot, 'down')}
+                    disabled={i === disciplineSlots.length - 1}
+                    className={`${btn} hover:bg-slate-700`}
+                    title="Move down"
+                  >↓</button>
+                  <button
+                    onClick={() => startEdit(slot)}
+                    className={`${btn} hover:bg-slate-700 hover:text-white`}
+                    title="Edit"
+                  >✎</button>
+                  <button
+                    onClick={() => deleteSlot(slot)}
+                    className={`${btn} hover:bg-red-900/60 hover:text-red-300`}
+                    title="Delete"
+                  >✕</button>
+                </div>
               </div>
             )
           })
@@ -207,24 +328,13 @@ export default function PlanningPage() {
             <span className="text-slate-500 text-xs shrink-0">min</span>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={addSlot}
-            disabled={saving || !selAthlete || !selDuration}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl py-3 font-semibold transition-colors"
-          >
-            + Add Slot
-          </button>
-          {disciplineSlots.length > 0 && (
-            <button
-              onClick={removeLastSlot}
-              className="bg-slate-700 hover:bg-red-900/60 rounded-xl px-4 text-slate-400 transition-colors"
-              title="Remove last slot"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+        <button
+          onClick={addSlot}
+          disabled={saving || !selAthlete || !selDuration}
+          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl py-3 font-semibold transition-colors"
+        >
+          + Add Slot
+        </button>
         {error && <p className="text-red-400 text-xs">{error}</p>}
       </div>
 
