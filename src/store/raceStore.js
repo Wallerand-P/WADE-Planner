@@ -8,11 +8,24 @@ export const useRaceStore = create(
       room: null,
       athletes: [],
       slots: [],
+      recentRooms: [], // [{ code, name }] of rooms this device has entered
 
       setRoomCode: (roomCode) => set({ roomCode }),
       setRoom: (room) => set({ room }),
       setAthletes: (athletes) => set({ athletes }),
       setSlots: (slots) => set({ slots }),
+
+      // Record a room this device has entered (most recent first, deduped by code)
+      addRecentRoom: ({ code, name }) => set((state) => ({
+        recentRooms: [
+          { code, name: name ?? '' },
+          ...state.recentRooms.filter(r => r.code !== code),
+        ],
+      })),
+
+      removeRecentRoom: (code) => set((state) => ({
+        recentRooms: state.recentRooms.filter(r => r.code !== code),
+      })),
 
       upsertSlot: (slot) => set((state) => {
         const exists = state.slots.some(s => s.id === slot.id)
@@ -31,8 +44,9 @@ export const useRaceStore = create(
     }),
     {
       name: 'wade-planner',
-      // Only persist the room code — everything else is reloaded from Supabase on mount
-      partialize: (state) => ({ roomCode: state.roomCode }),
+      // Persist the current room code and the recent-rooms list; everything else
+      // is reloaded from Supabase on mount.
+      partialize: (state) => ({ roomCode: state.roomCode, recentRooms: state.recentRooms }),
     }
   )
 )
