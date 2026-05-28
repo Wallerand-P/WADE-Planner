@@ -11,6 +11,7 @@ export default function HomePage() {
     recentRooms, addRecentRoom, removeRecentRoom,
   } = useRaceStore()
   const [roomName, setRoomName] = useState('')
+  const [creatingMode, setCreatingMode] = useState(false)
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -80,21 +81,42 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-4">
-          <input
-            value={roomName}
-            onChange={e => setRoomName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && createRoom()}
-            placeholder="Room name"
-            maxLength={40}
-            className="w-full bg-slate-800 rounded-2xl px-4 py-3.5 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            onClick={createRoom}
-            disabled={loading || !roomName.trim()}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl py-4 font-semibold text-lg transition-colors"
-          >
-            {loading ? 'Creating…' : 'Create Room'}
-          </button>
+          {creatingMode ? (
+            <div className="space-y-3">
+              <input
+                autoFocus
+                value={roomName}
+                onChange={e => setRoomName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && createRoom()}
+                placeholder="Room name"
+                maxLength={40}
+                className="w-full bg-slate-800 rounded-2xl px-4 py-3.5 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={createRoom}
+                  disabled={loading || !roomName.trim()}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl py-4 font-semibold text-lg transition-colors"
+                >
+                  {loading ? 'Creating…' : 'Create'}
+                </button>
+                <button
+                  onClick={() => { setCreatingMode(false); setRoomName(''); setError('') }}
+                  disabled={loading}
+                  className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-2xl px-5 font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setError(''); setCreatingMode(true) }}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 rounded-2xl py-4 font-semibold text-lg transition-colors"
+            >
+              Create Room
+            </button>
+          )}
 
           <div className="flex items-center gap-3 text-slate-600">
             <div className="flex-1 h-px bg-slate-700" />
