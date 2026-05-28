@@ -100,7 +100,7 @@ export default function SetupPage() {
   }
 
   return (
-    <Layout title="Setup" roomCode={roomCode}>
+    <Layout title="Setup" roomCode={roomCode} showHome>
       <div className="flex flex-col flex-1 gap-6">
 
         <div className="bg-slate-800/50 rounded-xl p-3">
