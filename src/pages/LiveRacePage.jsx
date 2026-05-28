@@ -244,6 +244,14 @@ export default function LiveRacePage() {
           </div>
         )}
 
+        {/* Adjust plan */}
+        <button
+          onClick={() => navigate('/planning')}
+          className="w-full mt-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-indigo-300 transition-colors"
+        >
+          ✎ Adjust plan
+        </button>
+
         {/* Room code chip */}
         <div className="flex justify-center mt-2">
           <span className="font-mono text-xs text-slate-600 bg-slate-800 px-3 py-1 rounded-full">

@@ -207,7 +207,7 @@ export default function PlanningPage() {
   )
 
   return (
-    <Layout title="Planning" roomCode={roomCode} backTo="/setup">
+    <Layout title="Planning" roomCode={roomCode} backTo={room?.status === 'racing' ? '/race' : '/setup'}>
       {/* Discipline tabs */}
       <div className="flex gap-2 mb-5">
         {DISCIPLINE_ORDER.map(d => {
@@ -428,18 +428,27 @@ export default function PlanningPage() {
         </button>
       )}
 
-      {/* Launch button */}
-      <button
-        onClick={launchRace}
-        disabled={!allFilled}
-        className={`w-full mt-4 rounded-2xl py-4 font-semibold text-lg transition-colors ${
-          allFilled
-            ? 'bg-green-600 hover:bg-green-500'
-            : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-        }`}
-      >
-        {allFilled ? 'Launch Race →' : 'Fill all disciplines to launch'}
-      </button>
+      {/* Launch / resume button */}
+      {room?.status === 'racing' ? (
+        <button
+          onClick={() => navigate('/race')}
+          className="w-full mt-4 rounded-2xl py-4 font-semibold text-lg bg-green-600 hover:bg-green-500 transition-colors"
+        >
+          Resume race →
+        </button>
+      ) : (
+        <button
+          onClick={launchRace}
+          disabled={!allFilled}
+          className={`w-full mt-4 rounded-2xl py-4 font-semibold text-lg transition-colors ${
+            allFilled
+              ? 'bg-green-600 hover:bg-green-500'
+              : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+          }`}
+        >
+          {allFilled ? 'Launch Race →' : 'Fill all disciplines to launch'}
+        </button>
+      )}
     </Layout>
   )
 }
