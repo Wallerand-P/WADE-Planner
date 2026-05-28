@@ -24,6 +24,16 @@ export default function PlanningPage() {
   const total = DISCIPLINE_DURATIONS[activeTab]
   const remaining = total - scheduled
 
+  // Cumulative volume per athlete (overall + per discipline)
+  const volumeByAthlete = athletes.map(a => {
+    const byDisc = { swim: 0, bike: 0, run: 0 }
+    for (const s of slots) {
+      if (s.athlete_id === a.id) byDisc[s.discipline] += Number(s.planned_duration_minutes)
+    }
+    return { ...a, byDisc, total: byDisc.swim + byDisc.bike + byDisc.run }
+  })
+  const maxAthleteVolume = Math.max(1, ...volumeByAthlete.map(v => v.total))
+
   // Auto-fill duration when athlete or tab changes
   useEffect(() => {
     if (!selAthlete && athletes.length > 0) {
@@ -120,15 +130,70 @@ export default function PlanningPage() {
               : `${formatDuration(remaining)} remaining`}
           </span>
         </div>
-        <div className="w-full bg-slate-700 rounded-full h-1.5">
-          <div
-            className={`h-1.5 rounded-full transition-all ${meta.badge}`}
-            style={{ width: `${Math.min(100, (scheduled / total) * 100)}%` }}
-          />
+        {/* Stacked bar — one segment per slot, colored by athlete */}
+        <div className="w-full bg-slate-700 rounded-full h-2.5 flex overflow-hidden">
+          {disciplineSlots.map((slot, i) => {
+            const a = athletes.find(x => x.id === slot.athlete_id)
+            const pct = (Number(slot.planned_duration_minutes) / total) * 100
+            return (
+              <div
+                key={slot.id}
+                className={`h-full ${i < disciplineSlots.length - 1 ? 'border-r border-slate-900/40' : ''}`}
+                style={{ width: `${pct}%`, backgroundColor: a?.color }}
+              />
+            )
+          })}
         </div>
         <p className="text-xs text-slate-500 mt-1.5">
           {formatDuration(scheduled)} of {formatDuration(total)} target
         </p>
+
+        {/* Per-athlete volume in this discipline */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+          {volumeByAthlete.map(v => (
+            <div key={v.id} className="flex items-center gap-1.5 text-xs">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: v.color }} />
+              <span className="text-slate-300">{v.name}</span>
+              <span className="text-slate-500 font-mono">{formatDuration(v.byDisc[activeTab])}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Total volume per athlete, split by discipline */}
+      <div className="bg-slate-800/60 rounded-xl p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Total volume per athlete
+          </span>
+          <div className="flex gap-2.5">
+            {DISCIPLINE_ORDER.map(d => (
+              <span key={d} className="flex items-center gap-1 text-[10px] text-slate-400">
+                <span className={`w-2 h-2 rounded-sm ${DISCIPLINE_META[d].badge}`} />
+                {DISCIPLINE_META[d].short}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          {volumeByAthlete.map(v => (
+            <div key={v.id} className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: v.color }} />
+              <span className="w-6 text-sm font-medium shrink-0">{v.name}</span>
+              <div className="flex-1 bg-slate-700/40 rounded-full h-2 flex overflow-hidden">
+                {DISCIPLINE_ORDER.map(d => {
+                  const w = (v.byDisc[d] / maxAthleteVolume) * 100
+                  return w > 0 ? (
+                    <div key={d} className={`h-full ${DISCIPLINE_META[d].badge}`} style={{ width: `${w}%` }} />
+                  ) : null
+                })}
+              </div>
+              <span className="w-12 text-right text-xs font-mono text-slate-400 shrink-0">
+                {formatDuration(v.total)}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Slot list */}
