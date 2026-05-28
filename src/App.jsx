@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage'
 import SetupPage from './pages/SetupPage'
 import PlanningPage from './pages/PlanningPage'
 import LiveRacePage from './pages/LiveRacePage'
+import SchedulePage from './pages/SchedulePage'
 
 // Rehydrates store on refresh and subscribes to room status changes so all
 // phones navigate together when the room moves to planning or racing.
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="/setup"    element={<SetupPage />} />
         <Route path="/planning" element={<PlanningPage />} />
         <Route path="/race"     element={<LiveRacePage />} />
+        <Route path="/schedule" element={<SchedulePage />} />
         <Route path="*"         element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

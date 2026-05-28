@@ -225,7 +225,7 @@ export default function PlanningPage() {
   )
 
   return (
-    <Layout title="Planning" roomCode={roomCode} backTo={room?.status === 'racing' ? '/race' : '/setup'}>
+    <Layout title="Planning" roomCode={roomCode} showHome backTo={room?.status === 'racing' ? '/race' : '/setup'}>
       {/* Discipline tabs */}
       <div className="flex gap-2 mb-5">
         {DISCIPLINE_ORDER.map(d => {
@@ -449,6 +449,14 @@ export default function PlanningPage() {
           {autoFilling ? 'Generating…' : `✨ Auto-fill ${meta.label}`}
         </button>
       )}
+
+      {/* Full schedule */}
+      <button
+        onClick={() => navigate('/schedule')}
+        className="w-full mt-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-slate-300 transition-colors"
+      >
+        📋 Full schedule
+      </button>
 
       {/* Launch / resume button */}
       {room?.status === 'racing' ? (

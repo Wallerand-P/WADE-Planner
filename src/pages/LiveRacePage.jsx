@@ -290,13 +290,21 @@ export default function LiveRacePage() {
           </div>
         )}
 
-        {/* Adjust plan */}
-        <button
-          onClick={() => navigate('/planning')}
-          className="w-full mt-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-indigo-300 transition-colors"
-        >
-          ✎ Adjust plan
-        </button>
+        {/* Schedule + adjust plan */}
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={() => navigate('/schedule')}
+            className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-slate-300 transition-colors"
+          >
+            📋 Schedule
+          </button>
+          <button
+            onClick={() => navigate('/planning')}
+            className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-indigo-300 transition-colors"
+          >
+            ✎ Adjust plan
+          </button>
+        </div>
 
         {/* Room code chip */}
         <div className="flex justify-center mt-2">
