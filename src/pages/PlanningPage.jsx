@@ -28,6 +28,7 @@ export default function PlanningPage() {
   const [autoFilling, setAutoFilling] = useState(false)
   const [confirmAutoFill, setConfirmAutoFill] = useState(false)
 
+  const racing = room?.status === 'racing'
   const meta = DISCIPLINE_META[activeTab]
   const disciplineSlots = getSortedSlots(slots).filter(s => s.discipline === activeTab)
   const scheduled = getScheduledMinutes(slots, activeTab)
@@ -54,6 +55,22 @@ export default function PlanningPage() {
     const a = athletes.find(x => x.id === selAthlete)
     if (a) setSelDuration(String(a[`${activeTab}_pace`]))
   }, [selAthlete, activeTab, athletes])
+
+  // Keep the plan in sync across phones in real time
+  useEffect(() => {
+    if (!roomCode) return
+    const channel = supabase
+      .channel(`planning-${roomCode}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'schedule_slots',
+        filter: `room_code=eq.${roomCode}`,
+      }, payload => {
+        if (payload.eventType === 'DELETE') removeSlot(payload.old.id)
+        else upsertSlot(payload.new)
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [roomCode, upsertSlot, removeSlot])
 
   if (!roomCode) { navigate('/'); return null }
 
@@ -109,6 +126,7 @@ export default function PlanningPage() {
   }
 
   function onAutoFillClick() {
+    if (racing) return
     if (disciplineSlots.length > 0) setConfirmAutoFill(true)
     else autoFill()
   }
@@ -395,8 +413,12 @@ export default function PlanningPage() {
         {error && <p className="text-red-400 text-xs">{error}</p>}
       </div>
 
-      {/* Auto-fill */}
-      {confirmAutoFill ? (
+      {/* Auto-fill (disabled once the race has started) */}
+      {racing ? (
+        <p className="w-full mt-4 text-center text-xs text-slate-600">
+          Auto-fill is disabled during the race
+        </p>
+      ) : confirmAutoFill ? (
         <div className="bg-slate-800 border border-indigo-500 rounded-xl p-4 mt-4 space-y-3">
           <p className="text-sm text-slate-300">
             Replace the {disciplineSlots.length} existing {meta.label.toLowerCase()} slot(s) with an
