@@ -207,7 +207,7 @@ export default function PlanningPage() {
   )
 
   return (
-    <Layout title="Planning" roomCode={roomCode} showBack>
+    <Layout title="Planning" roomCode={roomCode} backTo="/setup">
       {/* Discipline tabs */}
       <div className="flex gap-2 mb-5">
         {DISCIPLINE_ORDER.map(d => {

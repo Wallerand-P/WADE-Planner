@@ -1,15 +1,15 @@
 import { useNavigate } from 'react-router-dom'
 
-export default function Layout({ children, title, showBack = false, showHome = false, roomCode }) {
+export default function Layout({ children, title, showBack = false, backTo, showHome = false, roomCode }) {
   const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="max-w-md mx-auto px-4 pt-6 pb-10 min-h-screen flex flex-col">
-        {(title || showBack || showHome || roomCode) && (
+        {(title || showBack || backTo || showHome || roomCode) && (
           <div className="flex items-center gap-3 mb-6">
-            {showBack && (
+            {(showBack || backTo) && (
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => (backTo ? navigate(backTo) : navigate(-1))}
                 className="text-slate-400 hover:text-white text-xl leading-none"
               >
                 ←
