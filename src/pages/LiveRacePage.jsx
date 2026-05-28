@@ -14,6 +14,8 @@ export default function LiveRacePage() {
   const [now, setNow] = useState(Date.now())
   const [confirming, setConfirming] = useState(false)
   const [suggestion, setSuggestion] = useState(null)
+  const [enteringFinish, setEnteringFinish] = useState(false)
+  const [finishTime, setFinishTime] = useState('') // datetime-local value
 
   // 1-second tick
   useEffect(() => {
@@ -70,13 +72,22 @@ export default function LiveRacePage() {
     : sortedSlots.length
   const nextSlots = sortedSlots.slice(currentIndex + 1, currentIndex + 4)
 
+  function startFinishEntry() {
+    if (!currentSlot) return
+    setFinishTime(dayjs().format('YYYY-MM-DDTHH:mm'))
+    setEnteringFinish(true)
+  }
+
   async function confirmLoop() {
     if (!currentSlot || confirming) return
+    const startMs = startTimes[currentSlot.id]
+    const endMs = dayjs(finishTime).valueOf()
+    if (!finishTime || Number.isNaN(endMs) || endMs <= startMs) return
     setConfirming(true)
     try {
-      const actualEndTime = new Date().toISOString()
-      const actualStartTime = new Date(startTimes[currentSlot.id]).toISOString()
-      const actualMinutes = (now - startTimes[currentSlot.id]) / 60_000
+      const actualEndTime = new Date(endMs).toISOString()
+      const actualStartTime = new Date(startMs).toISOString()
+      const actualMinutes = (endMs - startMs) / 60_000
 
       const { data, error } = await supabase
         .from('schedule_slots')
@@ -86,6 +97,7 @@ export default function LiveRacePage() {
         .single()
       if (error) throw error
       upsertSlot(data)
+      setEnteringFinish(false)
 
       // Suggest pace adjustment if delta ≥ 2 min
       const delta = actualMinutes - Number(currentSlot.planned_duration_minutes)
@@ -163,13 +175,47 @@ export default function LiveRacePage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={confirmLoop}
-              disabled={confirming}
-              className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-xl py-3.5 font-semibold text-lg transition-colors"
-            >
-              {confirming ? 'Confirming…' : 'Confirm loop done ✓'}
-            </button>
+            {enteringFinish ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">
+                    Finished at (started {dayjs(slotStartMs).format('HH:mm')})
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={finishTime}
+                    onChange={e => setFinishTime(e.target.value)}
+                    className="w-full bg-slate-900/60 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  {finishTime && dayjs(finishTime).valueOf() <= slotStartMs && (
+                    <p className="text-red-400 text-xs mt-1">Must be after the loop started</p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirmLoop}
+                    disabled={confirming || dayjs(finishTime).valueOf() <= slotStartMs}
+                    className="flex-1 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-xl py-3 font-semibold transition-colors"
+                  >
+                    {confirming ? 'Confirming…' : 'Confirm ✓'}
+                  </button>
+                  <button
+                    onClick={() => setEnteringFinish(false)}
+                    disabled={confirming}
+                    className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-xl px-5 font-semibold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={startFinishEntry}
+                className="w-full bg-green-600 hover:bg-green-500 rounded-xl py-3.5 font-semibold text-lg transition-colors"
+              >
+                Confirm loop done ✓
+              </button>
+            )}
           </div>
         ) : (
           <div className="rounded-2xl p-6 bg-slate-800 text-center">
