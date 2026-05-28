@@ -268,39 +268,6 @@ export default function PlanningPage() {
         </div>
       </div>
 
-      {/* Auto-fill */}
-      {confirmAutoFill ? (
-        <div className="bg-slate-800 border border-indigo-500 rounded-xl p-4 mb-4 space-y-3">
-          <p className="text-sm text-slate-300">
-            Replace the {disciplineSlots.length} existing {meta.label.toLowerCase()} slot(s) with an
-            auto-generated plan?
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={autoFill}
-              disabled={autoFilling}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg py-2.5 text-sm font-semibold transition-colors"
-            >
-              {autoFilling ? 'Generating…' : 'Replace'}
-            </button>
-            <button
-              onClick={() => setConfirmAutoFill(false)}
-              className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-lg py-2.5 text-sm font-semibold transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={onAutoFillClick}
-          disabled={autoFilling}
-          className="w-full mb-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-indigo-300 transition-colors"
-        >
-          {autoFilling ? 'Generating…' : `✨ Auto-fill ${meta.label}`}
-        </button>
-      )}
-
       {/* Slot list */}
       <div className="flex-1 space-y-2 mb-4 min-h-[80px]">
         {disciplineSlots.length === 0 ? (
@@ -427,6 +394,39 @@ export default function PlanningPage() {
         </button>
         {error && <p className="text-red-400 text-xs">{error}</p>}
       </div>
+
+      {/* Auto-fill */}
+      {confirmAutoFill ? (
+        <div className="bg-slate-800 border border-indigo-500 rounded-xl p-4 mt-4 space-y-3">
+          <p className="text-sm text-slate-300">
+            Replace the {disciplineSlots.length} existing {meta.label.toLowerCase()} slot(s) with an
+            auto-generated plan?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={autoFill}
+              disabled={autoFilling}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+            >
+              {autoFilling ? 'Generating…' : 'Replace'}
+            </button>
+            <button
+              onClick={() => setConfirmAutoFill(false)}
+              className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={onAutoFillClick}
+          disabled={autoFilling}
+          className="w-full mt-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-indigo-300 transition-colors"
+        >
+          {autoFilling ? 'Generating…' : `✨ Auto-fill ${meta.label}`}
+        </button>
+      )}
 
       {/* Launch button */}
       <button
