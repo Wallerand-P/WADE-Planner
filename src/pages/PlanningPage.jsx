@@ -32,7 +32,6 @@ export default function PlanningPage() {
     }
     return { ...a, byDisc, total: byDisc.swim + byDisc.bike + byDisc.run }
   })
-  const maxAthleteVolume = Math.max(1, ...volumeByAthlete.map(v => v.total))
 
   // Auto-fill duration when athlete or tab changes
   useEffect(() => {
@@ -155,42 +154,6 @@ export default function PlanningPage() {
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: v.color }} />
               <span className="text-slate-300">{v.name}</span>
               <span className="text-slate-500 font-mono">{formatDuration(v.byDisc[activeTab])}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Total volume per athlete, split by discipline */}
-      <div className="bg-slate-800/60 rounded-xl p-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Total volume per athlete
-          </span>
-          <div className="flex gap-2.5">
-            {DISCIPLINE_ORDER.map(d => (
-              <span key={d} className="flex items-center gap-1 text-[10px] text-slate-400">
-                <span className={`w-2 h-2 rounded-sm ${DISCIPLINE_META[d].badge}`} />
-                {DISCIPLINE_META[d].short}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-2">
-          {volumeByAthlete.map(v => (
-            <div key={v.id} className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: v.color }} />
-              <span className="w-6 text-sm font-medium shrink-0">{v.name}</span>
-              <div className="flex-1 bg-slate-700/40 rounded-full h-2 flex overflow-hidden">
-                {DISCIPLINE_ORDER.map(d => {
-                  const w = (v.byDisc[d] / maxAthleteVolume) * 100
-                  return w > 0 ? (
-                    <div key={d} className={`h-full ${DISCIPLINE_META[d].badge}`} style={{ width: `${w}%` }} />
-                  ) : null
-                })}
-              </div>
-              <span className="w-12 text-right text-xs font-mono text-slate-400 shrink-0">
-                {formatDuration(v.total)}
-              </span>
             </div>
           ))}
         </div>
