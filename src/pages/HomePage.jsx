@@ -64,6 +64,7 @@ export default function HomePage() {
 
       if (room.status === 'racing') navigate('/race')
       else if (room.status === 'planning') navigate('/planning')
+      else if (room.status === 'finished') navigate('/schedule')
       else navigate('/setup')
     } catch (e) {
       setError(e.message)

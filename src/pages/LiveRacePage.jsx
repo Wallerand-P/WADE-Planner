@@ -10,12 +10,13 @@ import {
 
 export default function LiveRacePage() {
   const navigate = useNavigate()
-  const { roomCode, room, athletes, slots, setSlots, upsertSlot } = useRaceStore()
+  const { roomCode, room, athletes, slots, setSlots, upsertSlot, setRoom } = useRaceStore()
   const [now, setNow] = useState(Date.now())
   const [confirming, setConfirming] = useState(false)
   const [suggestion, setSuggestion] = useState(null)
   const [enteringFinish, setEnteringFinish] = useState(false)
   const [finishTime, setFinishTime] = useState('') // datetime-local value
+  const [confirmEnd, setConfirmEnd] = useState(false)
 
   // 1-second tick
   useEffect(() => {
@@ -118,6 +119,12 @@ export default function LiveRacePage() {
     }
   }
 
+  async function endRace() {
+    await supabase.from('rooms').update({ status: 'finished' }).eq('code', roomCode)
+    setRoom({ ...room, status: 'finished' })
+    navigate('/schedule')
+  }
+
   async function applyAdjustment() {
     if (!suggestion) return
     const newDuration = Number(suggestion.confirmedSlot.planned_duration_minutes) + suggestion.delta
@@ -137,15 +144,6 @@ export default function LiveRacePage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="max-w-md mx-auto px-4 pt-6 pb-10 flex flex-col gap-4">
-
-        {/* Home */}
-        <button
-          onClick={() => navigate('/')}
-          className="self-start text-slate-400 hover:text-white text-xl leading-none"
-          title="Home"
-        >
-          ⌂
-        </button>
 
         {/* Race clock */}
         <div className="text-center">
@@ -314,6 +312,42 @@ export default function LiveRacePage() {
             ✎ Adjust plan
           </button>
         </div>
+
+        {/* Home */}
+        <button
+          onClick={() => navigate('/')}
+          className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-3 text-sm font-semibold text-slate-300 transition-colors"
+        >
+          ⌂ Home
+        </button>
+
+        {/* End race */}
+        {confirmEnd ? (
+          <div className="bg-slate-800 border border-red-500/60 rounded-xl p-4 space-y-3">
+            <p className="text-sm text-slate-300">End the race for everyone? You can still view the final schedule afterwards.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={endRace}
+                className="flex-1 bg-red-600 hover:bg-red-500 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+              >
+                End race
+              </button>
+              <button
+                onClick={() => setConfirmEnd(false)}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmEnd(true)}
+            className="w-full bg-slate-800 hover:bg-red-900/40 border border-red-500/40 rounded-xl py-3 text-sm font-semibold text-red-300 transition-colors"
+          >
+            End race
+          </button>
+        )}
 
         {/* Room code chip */}
         <div className="flex justify-center mt-2">

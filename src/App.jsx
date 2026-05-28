@@ -44,6 +44,7 @@ function RoomSync() {
         setRoom(payload.new)
         if (payload.new.status === 'racing') navigate('/race')
         else if (payload.new.status === 'planning') navigate('/planning')
+        else if (payload.new.status === 'finished') navigate('/schedule')
       })
       .subscribe()
 
