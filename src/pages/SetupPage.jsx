@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
-import { ATHLETE_COLORS } from '../lib/raceUtils'
+import {
+  ATHLETE_COLORS, EVENTS, DISCIPLINE_ORDER, DISCIPLINE_META, pointsPerLoop,
+} from '../lib/raceUtils'
 import Layout from '../components/Layout'
 
 const PACE_FIELDS = [
@@ -33,8 +35,12 @@ export default function SetupPage() {
   const [raceStart, setRaceStart] = useState(
     room?.race_start_time ? room.race_start_time.slice(0, 16) : ''
   )
+  const [eventId, setEventId] = useState(room?.event_id ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const event = eventId ? EVENTS[eventId] : null
+  const loopPoints = event ? pointsPerLoop(event.lengthsKm) : null
 
   if (!roomCode) { navigate('/'); return null }
 
@@ -83,7 +89,7 @@ export default function SetupPage() {
         saved = data
       }
 
-      const roomUpdates = { status: 'planning' }
+      const roomUpdates = { status: 'planning', event_id: eventId || null }
       if (raceStart) roomUpdates.race_start_time = new Date(raceStart).toISOString()
       const { error: roomErr } = await supabase
         .from('rooms').update(roomUpdates).eq('code', roomCode)
@@ -107,6 +113,39 @@ export default function SetupPage() {
           <p className="text-[11px] text-white/40 mb-1">Share this code with your teammates</p>
           <p className="font-mono text-2xl font-bold tracking-[0.3em] text-indigo-300">{roomCode}</p>
         </div>
+
+        <section>
+          <h2 className="label-eyebrow mb-3 px-1">Event</h2>
+          <select
+            value={eventId}
+            onChange={e => setEventId(e.target.value)}
+            className="input-field w-full px-4 py-3.5"
+          >
+            <option value="">Select an event…</option>
+            {Object.values(EVENTS).map(ev => (
+              <option key={ev.id} value={ev.id}>{ev.name}</option>
+            ))}
+          </select>
+
+          {event && (
+            <div className="card p-4 mt-3 space-y-2.5">
+              {DISCIPLINE_ORDER.map(d => {
+                const m = DISCIPLINE_META[d]
+                return (
+                  <div key={d} className="flex items-center justify-between text-sm">
+                    <span className={`font-semibold ${m.text}`}>{m.label}</span>
+                    <span className="text-white/55 tabular-nums">
+                      {event.lengthsKm[d]} km
+                      <span className="text-white/30"> · </span>
+                      <span className="text-white/80 font-medium">{Math.round(loopPoints[d] * 10) / 10} pts</span>
+                      <span className="text-white/35">/loop</span>
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
 
         <section>
           <h2 className="label-eyebrow mb-3 px-1">Athletes &amp; paces (min / loop)</h2>

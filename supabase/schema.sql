@@ -6,13 +6,15 @@ create extension if not exists "pgcrypto";
 create table if not exists rooms (
   code             text        primary key,
   name             text,
+  event_id         text,
   status           text        not null default 'setup',  -- setup | planning | racing | finished
   race_start_time  timestamptz,
   created_at       timestamptz not null default now()
 );
 
--- Migration for an existing rooms table:
+-- Migrations for an existing rooms table:
 alter table rooms add column if not exists name text;
+alter table rooms add column if not exists event_id text;
 
 create table if not exists athletes (
   id         uuid  primary key default gen_random_uuid(),

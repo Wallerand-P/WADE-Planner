@@ -12,6 +12,26 @@ export const DISCIPLINE_META = {
 
 export const ATHLETE_COLORS = ['#f43f5e', '#a855f7', '#38bdf8', '#fb923c']
 
+// Points scored per kilometre, per discipline
+export const POINTS_PER_KM = { swim: 15, bike: 1, run: 4 }
+
+// Selectable races. lengthsKm = loop distance per discipline (one loop).
+export const EVENTS = {
+  't24-breizh-2026': {
+    id: 't24-breizh-2026',
+    name: 'T24 Breizh 2026',
+    lengthsKm: { swim: 1, bike: 15.7, run: 5.2 },
+  },
+}
+
+// Points earned for completing one loop of each discipline for a given event
+export function pointsPerLoop(lengthsKm) {
+  return DISCIPLINE_ORDER.reduce((acc, d) => {
+    acc[d] = lengthsKm[d] * POINTS_PER_KM[d]
+    return acc
+  }, {})
+}
+
 export function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
