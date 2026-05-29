@@ -193,7 +193,7 @@ export default function SetupPage() {
             type="datetime-local"
             value={raceStart}
             onChange={e => setRaceStart(e.target.value)}
-            className="input-field w-full px-4 py-3.5"
+            className="input-field block w-full min-w-0 max-w-full appearance-none box-border px-4 py-3.5"
           />
         </section>
 
