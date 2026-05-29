@@ -3,6 +3,23 @@
 
 create extension if not exists "pgcrypto";
 
+-- Races. Distances are the loop length (one loop) per discipline, in km.
+create table if not exists events (
+  id       text    primary key,
+  name     text    not null,
+  swim_km  numeric not null,
+  bike_km  numeric not null,
+  run_km   numeric not null
+);
+
+insert into events (id, name, swim_km, bike_km, run_km)
+values ('t24-breizh-2026', 'T24 Breizh 2026', 1, 15.7, 5.2)
+on conflict (id) do update set
+  name = excluded.name,
+  swim_km = excluded.swim_km,
+  bike_km = excluded.bike_km,
+  run_km = excluded.run_km;
+
 create table if not exists rooms (
   code             text        primary key,
   name             text,

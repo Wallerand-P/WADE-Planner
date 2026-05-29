@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
-  ATHLETE_COLORS, EVENTS, DISCIPLINE_ORDER, DISCIPLINE_META, pointsPerLoop,
+  ATHLETE_COLORS, DISCIPLINE_ORDER, DISCIPLINE_META, pointsPerLoop, eventLengthsKm,
 } from '../lib/raceUtils'
 import Layout from '../components/Layout'
 
@@ -36,11 +36,18 @@ export default function SetupPage() {
     room?.race_start_time ? room.race_start_time.slice(0, 16) : ''
   )
   const [eventId, setEventId] = useState(room?.event_id ?? '')
+  const [events, setEvents] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const event = eventId ? EVENTS[eventId] : null
-  const loopPoints = event ? pointsPerLoop(event.lengthsKm) : null
+  useEffect(() => {
+    supabase.from('events').select('*').order('name')
+      .then(({ data }) => setEvents(data ?? []))
+  }, [])
+
+  const event = events.find(e => e.id === eventId) || null
+  const lengthsKm = event ? eventLengthsKm(event) : null
+  const loopPoints = lengthsKm ? pointsPerLoop(lengthsKm) : null
 
   if (!roomCode) { navigate('/'); return null }
 
@@ -122,12 +129,12 @@ export default function SetupPage() {
             className="input-field w-full px-4 py-3.5"
           >
             <option value="">Select an event…</option>
-            {Object.values(EVENTS).map(ev => (
+            {events.map(ev => (
               <option key={ev.id} value={ev.id}>{ev.name}</option>
             ))}
           </select>
 
-          {event && (
+          {lengthsKm && (
             <div className="card p-4 mt-3 space-y-2.5">
               {DISCIPLINE_ORDER.map(d => {
                 const m = DISCIPLINE_META[d]
@@ -135,7 +142,7 @@ export default function SetupPage() {
                   <div key={d} className="flex items-center justify-between text-sm">
                     <span className={`font-semibold ${m.text}`}>{m.label}</span>
                     <span className="text-white/55 tabular-nums">
-                      {event.lengthsKm[d]} km
+                      {lengthsKm[d]} km
                       <span className="text-white/30"> · </span>
                       <span className="text-white/80 font-medium">{Math.round(loopPoints[d] * 10) / 10} pts</span>
                       <span className="text-white/35">/loop</span>

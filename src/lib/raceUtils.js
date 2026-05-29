@@ -15,13 +15,9 @@ export const ATHLETE_COLORS = ['#f43f5e', '#a855f7', '#38bdf8', '#fb923c']
 // Points scored per kilometre, per discipline
 export const POINTS_PER_KM = { swim: 15, bike: 1, run: 4 }
 
-// Selectable races. lengthsKm = loop distance per discipline (one loop).
-export const EVENTS = {
-  't24-breizh-2026': {
-    id: 't24-breizh-2026',
-    name: 'T24 Breizh 2026',
-    lengthsKm: { swim: 1, bike: 15.7, run: 5.2 },
-  },
+// Map an `events` table row to per-discipline loop distances (km)
+export function eventLengthsKm(event) {
+  return { swim: Number(event.swim_km), bike: Number(event.bike_km), run: Number(event.run_km) }
 }
 
 // Points earned for completing one loop of each discipline for a given event
