@@ -13,7 +13,7 @@ import { Analytics } from '@vercel/analytics/react'
 // phones navigate together when the room moves to planning or racing.
 function RoomSync() {
   const navigate = useNavigate()
-  const { roomCode, athletes, setRoom, setAthletes, setSlots, clearRoom } = useRaceStore()
+  const { roomCode, athletes, setRoom, setEvent, setAthletes, setSlots, clearRoom } = useRaceStore()
 
   useEffect(() => {
     if (!roomCode) return
@@ -30,6 +30,13 @@ function RoomSync() {
       setRoom(room)
       setAthletes(aths ?? [])
       setSlots(slots ?? [])
+
+      if (room.event_id) {
+        const { data: ev } = await supabase.from('events').select('*').eq('id', room.event_id).single()
+        setEvent(ev ?? null)
+      } else {
+        setEvent(null)
+      }
     }
 
     // Always reload on mount so page refresh gets fresh data

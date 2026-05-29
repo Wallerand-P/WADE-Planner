@@ -5,13 +5,14 @@ import { useRaceStore } from '../store/raceStore'
 import {
   DISCIPLINE_ORDER, DISCIPLINE_DURATIONS, DISCIPLINE_META,
   getSortedSlots, getScheduledMinutes, formatDuration,
+  eventLengthsKm, pointsPerLoop, fmtPoints,
 } from '../lib/raceUtils'
 import { generatePlan } from '../lib/generatePlan'
 import Layout from '../components/Layout'
 
 export default function PlanningPage() {
   const navigate = useNavigate()
-  const { roomCode, room, athletes, slots, setSlots, upsertSlot, removeSlot, setRoom } = useRaceStore()
+  const { roomCode, room, event, athletes, slots, setSlots, upsertSlot, removeSlot, setRoom } = useRaceStore()
 
   const [activeTab, setActiveTab] = useState('swim')
   const [selAthlete, setSelAthlete] = useState('')
@@ -33,6 +34,9 @@ export default function PlanningPage() {
   const disciplineSlots = getSortedSlots(slots).filter(s => s.discipline === activeTab)
   const scheduled = getScheduledMinutes(slots, activeTab)
   const total = DISCIPLINE_DURATIONS[activeTab]
+
+  const loopPts = event ? pointsPerLoop(eventLengthsKm(event)) : null
+  const disciplinePoints = loopPts ? disciplineSlots.length * loopPts[activeTab] : null
   const remaining = total - scheduled
 
   // Cumulative volume per athlete (overall + per discipline)
@@ -249,7 +253,14 @@ export default function PlanningPage() {
       {/* Progress card */}
       <div className="card p-4 mb-4">
         <div className="flex justify-between items-baseline mb-2.5">
-          <span className={`font-semibold ${meta.text}`}>{meta.label}</span>
+          <div className="flex items-baseline gap-2">
+            <span className={`font-semibold ${meta.text}`}>{meta.label}</span>
+            {disciplinePoints != null && (
+              <span className="text-xs font-mono text-white/45 tabular-nums">
+                {fmtPoints(disciplinePoints)} pts
+              </span>
+            )}
+          </div>
           <span className={`text-sm ${remaining <= 0 ? 'text-emerald-400' : 'text-white/55'}`}>
             {remaining <= 0
               ? '✓ Fully scheduled'

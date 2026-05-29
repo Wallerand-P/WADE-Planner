@@ -28,6 +28,27 @@ export function pointsPerLoop(lengthsKm) {
   }, {})
 }
 
+// Round points for display (one decimal, drop trailing .0)
+export function fmtPoints(n) {
+  return Math.round(n * 10) / 10
+}
+
+// Points implied by a set of slots (each slot = one loop of its discipline)
+// for a given event. Returns total + breakdown by discipline and athlete.
+export function computePoints(slots, lengthsKm) {
+  const perLoop = pointsPerLoop(lengthsKm)
+  const byDiscipline = { swim: 0, bike: 0, run: 0 }
+  const byAthlete = {}
+  let total = 0
+  for (const s of slots) {
+    const pts = perLoop[s.discipline] || 0
+    byDiscipline[s.discipline] += pts
+    byAthlete[s.athlete_id] = (byAthlete[s.athlete_id] || 0) + pts
+    total += pts
+  }
+  return { total, byDiscipline, byAthlete, perLoop }
+}
+
 export function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')

@@ -6,12 +6,14 @@ export const useRaceStore = create(
     (set) => ({
       roomCode: null,
       room: null,
+      event: null,
       athletes: [],
       slots: [],
       recentRooms: [], // [{ code, name }] of rooms this device has entered
 
       setRoomCode: (roomCode) => set({ roomCode }),
       setRoom: (room) => set({ room }),
+      setEvent: (event) => set({ event }),
       setAthletes: (athletes) => set({ athletes }),
       setSlots: (slots) => set({ slots }),
 
@@ -40,7 +42,7 @@ export const useRaceStore = create(
         slots: state.slots.filter(s => s.id !== id),
       })),
 
-      clearRoom: () => set({ roomCode: null, room: null, athletes: [], slots: [] }),
+      clearRoom: () => set({ roomCode: null, room: null, event: null, athletes: [], slots: [] }),
     }),
     {
       name: 'wade-planner',

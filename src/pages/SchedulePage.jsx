@@ -6,12 +6,13 @@ import { useRaceStore } from '../store/raceStore'
 import {
   getSortedSlots, computeStartTimes, getCurrentSlot,
   DISCIPLINE_ORDER, DISCIPLINE_META, formatDuration,
+  eventLengthsKm, computePoints, fmtPoints,
 } from '../lib/raceUtils'
 import Layout from '../components/Layout'
 
 export default function SchedulePage() {
   const navigate = useNavigate()
-  const { roomCode, room, athletes, slots, upsertSlot } = useRaceStore()
+  const { roomCode, room, event, athletes, slots, upsertSlot } = useRaceStore()
 
   // Stay in sync as loops are confirmed / the plan is edited
   useEffect(() => {
@@ -45,6 +46,8 @@ export default function SchedulePage() {
   const finishMs = lastSlot
     ? startTimes[lastSlot.id] + Number(lastSlot.planned_duration_minutes) * 60000
     : null
+
+  const points = event ? computePoints(slots, eventLengthsKm(event)) : null
 
   return (
     <Layout title="Schedule" roomCode={roomCode} showHome backTo={racing ? '/race' : '/planning'}>
@@ -114,6 +117,44 @@ export default function SchedulePage() {
           {finishMs && (
             <div className="text-center text-sm text-white/45 pt-1">
               Estimated finish · <span className="font-mono text-white/80 tabular-nums">{timeLabel(finishMs)}</span>
+            </div>
+          )}
+
+          {points && (
+            <div className="card p-4 space-y-4">
+              <div className="flex items-baseline justify-between">
+                <span className="label-eyebrow">Total points</span>
+                <span className="font-mono text-3xl font-bold tabular-nums">{fmtPoints(points.total)}</span>
+              </div>
+
+              <div className="space-y-1.5 pt-1 border-t border-white/[0.07]">
+                <p className="label-eyebrow pt-3 pb-0.5">Per discipline</p>
+                {DISCIPLINE_ORDER.map(d => {
+                  const m = DISCIPLINE_META[d]
+                  return (
+                    <div key={d} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-[3px] ${m.badge}`} />
+                        <span className="text-white/70">{m.label}</span>
+                      </span>
+                      <span className="font-mono text-white/80 tabular-nums">{fmtPoints(points.byDiscipline[d])}</span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="label-eyebrow pb-0.5">Per athlete</p>
+                {athletes.map(a => (
+                  <div key={a.id} className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: a.color }} />
+                      <span className="text-white/70">{a.name}</span>
+                    </span>
+                    <span className="font-mono text-white/80 tabular-nums">{fmtPoints(points.byAthlete[a.id] || 0)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
