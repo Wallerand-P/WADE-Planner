@@ -7,6 +7,7 @@ import SetupPage from './pages/SetupPage'
 import PlanningPage from './pages/PlanningPage'
 import LiveRacePage from './pages/LiveRacePage'
 import SchedulePage from './pages/SchedulePage'
+import { Analytics } from '@vercel/analytics/react'
 
 // Rehydrates store on refresh and subscribes to room status changes so all
 // phones navigate together when the room moves to planning or racing.
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="/schedule" element={<SchedulePage />} />
         <Route path="*"         element={<Navigate to="/" replace />} />
       </Routes>
+      <Analytics />
     </BrowserRouter>
   )
 }
