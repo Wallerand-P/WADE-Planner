@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
   DISCIPLINE_ORDER, DISCIPLINE_DURATIONS, DISCIPLINE_META,
-  getSortedSlots, getScheduledMinutes, formatDuration,
+  getSortedSlots, getScheduledMinutes, formatDuration, computeDisciplineBudgets,
   eventLengthsKm, pointsPerLoop, fmtPoints,
 } from '../lib/raceUtils'
 import { generatePlan } from '../lib/generatePlan'
@@ -33,7 +33,12 @@ export default function PlanningPage() {
   const meta = DISCIPLINE_META[activeTab]
   const disciplineSlots = getSortedSlots(slots).filter(s => s.discipline === activeTab)
   const scheduled = getScheduledMinutes(slots, activeTab)
-  const total = DISCIPLINE_DURATIONS[activeTab]
+
+  // Available time per discipline, accounting for boundary overruns cascading
+  // from earlier disciplines (a swim that runs past 4h shrinks the bike budget).
+  const { budgets } = computeDisciplineBudgets(slots)
+  const total = budgets[activeTab]
+  const nominal = DISCIPLINE_DURATIONS[activeTab]
 
   const loopPts = event ? pointsPerLoop(eventLengthsKm(event)) : null
   const disciplinePoints = loopPts ? disciplineSlots.length * loopPts[activeTab] : null
@@ -103,7 +108,7 @@ export default function PlanningPage() {
       }))
       const order = generatePlan(
         planAthletes,
-        { totalDuration: DISCIPLINE_DURATIONS[activeTab] },
+        { totalDuration: computeDisciplineBudgets(slots).budgets[activeTab] },
         previousDisciplineLastAthlete(activeTab)
       )
 
@@ -225,7 +230,7 @@ export default function PlanningPage() {
   }
 
   const allFilled = DISCIPLINE_ORDER.every(
-    d => getScheduledMinutes(slots, d) >= DISCIPLINE_DURATIONS[d] - 5
+    d => getScheduledMinutes(slots, d) >= budgets[d] - 5
   )
 
   return (
@@ -234,7 +239,7 @@ export default function PlanningPage() {
       <div className="flex gap-1 p-1 mb-5 rounded-2xl bg-white/[0.04] border border-white/10">
         {DISCIPLINE_ORDER.map(d => {
           const m = DISCIPLINE_META[d]
-          const done = getScheduledMinutes(slots, d) >= DISCIPLINE_DURATIONS[d] - 5
+          const done = getScheduledMinutes(slots, d) >= budgets[d] - 5
           const active = activeTab === d
           return (
             <button
@@ -261,10 +266,14 @@ export default function PlanningPage() {
               </span>
             )}
           </div>
-          <span className={`text-sm ${remaining <= 0 ? 'text-emerald-400' : 'text-white/55'}`}>
-            {remaining <= 0
-              ? '✓ Fully scheduled'
-              : `${formatDuration(remaining)} remaining`}
+          <span className={`text-sm ${
+            remaining < 0 ? 'text-rose-400' : remaining === 0 ? 'text-emerald-400' : 'text-white/55'
+          }`}>
+            {remaining < 0
+              ? `${formatDuration(remaining)} over`
+              : remaining === 0
+                ? '✓ Fully scheduled'
+                : `${formatDuration(remaining)} remaining`}
           </span>
         </div>
         {/* Stacked bar — one segment per slot, colored by athlete */}
@@ -282,7 +291,12 @@ export default function PlanningPage() {
           })}
         </div>
         <p className="text-xs text-white/35 mt-2 tabular-nums">
-          {formatDuration(scheduled)} of {formatDuration(total)} target
+          {formatDuration(scheduled)} of {formatDuration(total)} available
+          {total < nominal && (
+            <span className="text-amber-400/80">
+              {' '}· {formatDuration(nominal - total)} lost to overrun
+            </span>
+          )}
         </p>
 
         {/* Per-athlete volume in this discipline */}

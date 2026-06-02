@@ -2,7 +2,18 @@ import dayjs from 'dayjs'
 
 export const DISCIPLINE_ORDER = ['swim', 'bike', 'run']
 
-export const DISCIPLINE_DURATIONS = { swim: 240, bike: 720, run: 480 } // total minutes
+export const DISCIPLINE_DURATIONS = { swim: 240, bike: 720, run: 480 } // nominal minutes
+
+// Fixed start windows (minutes from race start). A discipline's loops may only
+// START within [start, end]; a loop may FINISH after `end`, and that overrun
+// pushes back the next discipline's start, shrinking its available time. The
+// next discipline can never start before its window opens (an early finish
+// doesn't add time).
+export const DISCIPLINE_WINDOWS = {
+  swim: { start: 0,   end: 240 },
+  bike: { start: 240, end: 960 },
+  run:  { start: 960, end: 1440 },
+}
 
 export const DISCIPLINE_META = {
   swim: { label: 'Swimming', short: 'Swim', bg: 'bg-blue-500/20',   text: 'text-blue-400',   border: 'border-blue-500',   badge: 'bg-blue-500'   },
@@ -65,6 +76,25 @@ export function getScheduledMinutes(slots, discipline) {
   return slots
     .filter(s => s.discipline === discipline)
     .reduce((sum, s) => sum + Number(s.planned_duration_minutes), 0)
+}
+
+// Available minutes per discipline given the scheduled loop totals, cascading
+// any boundary overrun into the next discipline. Also returns each discipline's
+// effective start (minutes from race start) and its nominal budget for
+// reference. Early finishes don't add time: a discipline can't start before its
+// window opens.
+export function computeDisciplineBudgets(slots) {
+  const budgets = {}
+  const starts = {}
+  let prevEnd = 0
+  for (const d of DISCIPLINE_ORDER) {
+    const w = DISCIPLINE_WINDOWS[d]
+    const start = Math.max(w.start, prevEnd)
+    starts[d] = start
+    budgets[d] = w.end - start
+    prevEnd = start + getScheduledMinutes(slots, d)
+  }
+  return { budgets, starts }
 }
 
 // Returns a map of slotId → planned start time (ms), accounting for confirmed actuals
