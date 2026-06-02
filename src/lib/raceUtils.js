@@ -31,10 +31,21 @@ export function eventLengthsKm(event) {
   return { swim: Number(event.swim_km), bike: Number(event.bike_km), run: Number(event.run_km) }
 }
 
-// Points earned for completing one loop of each discipline for a given event
+// Default points for one loop of each discipline, from distance × points/km
 export function pointsPerLoop(lengthsKm) {
   return DISCIPLINE_ORDER.reduce((acc, d) => {
     acc[d] = lengthsKm[d] * POINTS_PER_KM[d]
+    return acc
+  }, {})
+}
+
+// Points for one loop of each discipline for an event. Uses the event's
+// explicit per-loop points when set, otherwise the distance-based default.
+export function eventLoopPoints(event) {
+  const fallback = pointsPerLoop(eventLengthsKm(event))
+  const explicit = { swim: event.swim_points, bike: event.bike_points, run: event.run_points }
+  return DISCIPLINE_ORDER.reduce((acc, d) => {
+    acc[d] = explicit[d] != null ? Number(explicit[d]) : fallback[d]
     return acc
   }, {})
 }
@@ -44,10 +55,10 @@ export function fmtPoints(n) {
   return Math.round(n * 10) / 10
 }
 
-// Points implied by a set of slots (each slot = one loop of its discipline)
-// for a given event. Returns total + breakdown by discipline and athlete.
-export function computePoints(slots, lengthsKm) {
-  const perLoop = pointsPerLoop(lengthsKm)
+// Points implied by a set of slots (each slot = one loop of its discipline),
+// given the per-loop points map. Returns total + breakdown by discipline and
+// athlete.
+export function computePoints(slots, perLoop) {
   const byDiscipline = { swim: 0, bike: 0, run: 0 }
   const byAthlete = {}
   let total = 0

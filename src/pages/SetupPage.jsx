@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
-  ATHLETE_COLORS, DISCIPLINE_ORDER, DISCIPLINE_META, pointsPerLoop, eventLengthsKm, paceLabel,
+  ATHLETE_COLORS, DISCIPLINE_ORDER, DISCIPLINE_META, eventLoopPoints, eventLengthsKm, paceLabel,
 } from '../lib/raceUtils'
 import Layout from '../components/Layout'
 
@@ -52,7 +52,7 @@ export default function SetupPage() {
 
   const event = events.find(e => e.id === eventId) || null
   const lengthsKm = event ? eventLengthsKm(event) : null
-  const loopPoints = lengthsKm ? pointsPerLoop(lengthsKm) : null
+  const loopPoints = event ? eventLoopPoints(event) : null
 
   if (!roomCode) { navigate('/'); return null }
 

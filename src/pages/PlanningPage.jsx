@@ -5,7 +5,7 @@ import { useRaceStore } from '../store/raceStore'
 import {
   DISCIPLINE_ORDER, DISCIPLINE_DURATIONS, DISCIPLINE_META,
   getSortedSlots, getScheduledMinutes, formatDuration, computeDisciplineBudgets,
-  eventLengthsKm, pointsPerLoop, fmtPoints,
+  eventLoopPoints, fmtPoints,
 } from '../lib/raceUtils'
 import { generatePlan } from '../lib/generatePlan'
 import Layout from '../components/Layout'
@@ -40,7 +40,7 @@ export default function PlanningPage() {
   const total = budgets[activeTab]
   const nominal = DISCIPLINE_DURATIONS[activeTab]
 
-  const loopPts = event ? pointsPerLoop(eventLengthsKm(event)) : null
+  const loopPts = event ? eventLoopPoints(event) : null
   const disciplinePoints = loopPts ? disciplineSlots.length * loopPts[activeTab] : null
   const remaining = total - scheduled
 

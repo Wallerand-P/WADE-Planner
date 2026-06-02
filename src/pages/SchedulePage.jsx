@@ -6,7 +6,7 @@ import { useRaceStore } from '../store/raceStore'
 import {
   getSortedSlots, computeStartTimes, getCurrentSlot,
   DISCIPLINE_ORDER, DISCIPLINE_META, formatDuration,
-  eventLengthsKm, computePoints, fmtPoints,
+  eventLoopPoints, computePoints, fmtPoints,
 } from '../lib/raceUtils'
 import Layout from '../components/Layout'
 
@@ -47,7 +47,7 @@ export default function SchedulePage() {
     ? startTimes[lastSlot.id] + Number(lastSlot.planned_duration_minutes) * 60000
     : null
 
-  const points = event ? computePoints(slots, eventLengthsKm(event)) : null
+  const points = event ? computePoints(slots, eventLoopPoints(event)) : null
 
   return (
     <Layout title="Schedule" roomCode={roomCode} showHome backTo={racing ? '/race' : '/planning'}>

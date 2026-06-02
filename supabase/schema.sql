@@ -4,21 +4,34 @@
 create extension if not exists "pgcrypto";
 
 -- Races. Distances are the loop length (one loop) per discipline, in km.
+-- *_points override the points awarded for one loop; when null the app falls
+-- back to distance(km) × points-per-km (swim 15, bike 1, run 4).
 create table if not exists events (
-  id       text    primary key,
-  name     text    not null,
-  swim_km  numeric not null,
-  bike_km  numeric not null,
-  run_km   numeric not null
+  id          text    primary key,
+  name        text    not null,
+  swim_km     numeric not null,
+  bike_km     numeric not null,
+  run_km      numeric not null,
+  swim_points numeric,
+  bike_points numeric,
+  run_points  numeric
 );
 
-insert into events (id, name, swim_km, bike_km, run_km)
-values ('t24-breizh-2026', 'T24 Breizh 2026', 1, 15.7, 5.2)
+-- Migration for an existing events table:
+alter table events add column if not exists swim_points numeric;
+alter table events add column if not exists bike_points numeric;
+alter table events add column if not exists run_points  numeric;
+
+insert into events (id, name, swim_km, bike_km, run_km, swim_points, bike_points, run_points)
+values ('t24-breizh-2026', 'T24 Breizh 2026', 1, 15.7, 5.2, 15, 16, 24)
 on conflict (id) do update set
   name = excluded.name,
   swim_km = excluded.swim_km,
   bike_km = excluded.bike_km,
-  run_km = excluded.run_km;
+  run_km = excluded.run_km,
+  swim_points = excluded.swim_points,
+  bike_points = excluded.bike_points,
+  run_points = excluded.run_points;
 
 create table if not exists rooms (
   code             text        primary key,
