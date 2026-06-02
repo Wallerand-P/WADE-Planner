@@ -127,6 +127,26 @@ export function formatDuration(minutes) {
   return `${h}h${rem.toString().padStart(2, '0')}`
 }
 
+// Format a duration in (fractional) minutes as m:ss
+function fmtMinSec(minutes) {
+  const totalSec = Math.round(minutes * 60)
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+// Speed/pace label for one discipline, from a loop time (minutes) and loop
+// distance (km). Swim → min/100m, bike → km/h, run → min/km. Returns null if
+// inputs are missing.
+export function paceLabel(discipline, minutes, km) {
+  const min = Number(minutes)
+  if (!min || !km) return null
+  if (discipline === 'swim') return `${fmtMinSec(min / (km * 10))}/100m`
+  if (discipline === 'run')  return `${fmtMinSec(min / km)}/km`
+  const kmh = km / (min / 60)
+  return `${Math.round(kmh * 10) / 10} km/h`
+}
+
 export function formatCountdown(ms) {
   const neg = ms < 0
   const total = Math.floor(Math.abs(ms) / 1000)

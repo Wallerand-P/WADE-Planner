@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
-  ATHLETE_COLORS, DISCIPLINE_ORDER, DISCIPLINE_META, pointsPerLoop, eventLengthsKm,
+  ATHLETE_COLORS, DISCIPLINE_ORDER, DISCIPLINE_META, pointsPerLoop, eventLengthsKm, paceLabel,
 } from '../lib/raceUtils'
 import Layout from '../components/Layout'
 
 const PACE_FIELDS = [
-  { key: 'swim_pace', label: 'Swim', color: 'text-blue-400' },
-  { key: 'bike_pace', label: 'Bike', color: 'text-amber-400' },
-  { key: 'run_pace',  label: 'Run',  color: 'text-emerald-400' },
+  { key: 'swim_pace', disc: 'swim', label: 'Swim', color: 'text-blue-400' },
+  { key: 'bike_pace', disc: 'bike', label: 'Bike', color: 'text-amber-400' },
+  { key: 'run_pace',  disc: 'run',  label: 'Run',  color: 'text-emerald-400' },
 ]
 
 const DEFAULT_NAMES = ['W', 'A', 'D', 'E']
@@ -44,6 +44,11 @@ export default function SetupPage() {
     supabase.from('events').select('*').order('name')
       .then(({ data }) => setEvents(data ?? []))
   }, [])
+
+  // Preselect the room's saved event once it loads (room hydrates async)
+  useEffect(() => {
+    if (room?.event_id) setEventId(room.event_id)
+  }, [room?.event_id])
 
   const event = events.find(e => e.id === eventId) || null
   const lengthsKm = event ? eventLengthsKm(event) : null
@@ -169,18 +174,24 @@ export default function SetupPage() {
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  {PACE_FIELDS.map(({ key, label, color }) => (
-                    <div key={key}>
-                      <label className={`block text-[11px] font-medium ${color} mb-1`}>{label}</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={athlete[key]}
-                        onChange={e => update(i, key, e.target.value)}
-                        className="input-field w-full px-2 py-2 text-center text-sm tabular-nums"
-                      />
-                    </div>
-                  ))}
+                  {PACE_FIELDS.map(({ key, disc, label, color }) => {
+                    const speed = lengthsKm ? paceLabel(disc, athlete[key], lengthsKm[disc]) : null
+                    return (
+                      <div key={key}>
+                        <label className={`block text-[11px] font-medium ${color} mb-1`}>{label}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={athlete[key]}
+                          onChange={e => update(i, key, e.target.value)}
+                          className="input-field w-full px-2 py-2 text-center text-sm tabular-nums"
+                        />
+                        {speed && (
+                          <p className="text-xs text-white/55 text-center mt-1 tabular-nums">{speed}</p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ))}
