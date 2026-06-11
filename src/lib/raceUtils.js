@@ -11,7 +11,10 @@ export const GROUP_META = {
   run:  { label: 'Running',  short: 'Run',  bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500', badge: 'bg-emerald-500' },
 }
 
-export const ATHLETE_COLORS = ['#f43f5e', '#a855f7', '#38bdf8', '#fb923c']
+export const ATHLETE_COLORS = ['#f43f5e', '#a855f7', '#38bdf8', '#fb923c', '#34d399', '#facc15']
+
+// Selectable team sizes
+export const TEAM_SIZES = [1, 2, 4, 6]
 
 // Points scored per kilometre, per group (used as a fallback when an event
 // doesn't specify explicit per-loop points)

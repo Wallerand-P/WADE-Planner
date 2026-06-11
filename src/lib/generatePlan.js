@@ -47,18 +47,22 @@ export function generatePlan(athletes, discipline, previousDisciplineLastAthlete
     counts[byFraction[k % n].id] += 1
   }
 
-  // Feasibility: no athlete may have more loops than (everyone else + 1), otherwise
-  // a no-back-to-back ordering is impossible. Shift any excess to the least-loaded.
+  // Feasibility: with 2+ athletes, no one may have more loops than (everyone
+  // else + 1), otherwise a no-back-to-back ordering is impossible. Shift any
+  // excess to the least-loaded. (A solo team always goes back-to-back, so this
+  // doesn't apply — they simply do every loop.)
   const totalLoops = () => athletes.reduce((s, a) => s + counts[a.id], 0)
   const sortedByLoad = () =>
     [...athletes].sort((x, y) => counts[y.id] - counts[x.id] || athletes.indexOf(x) - athletes.indexOf(y))
-  for (let guard = 0; guard < 1000; guard++) {
-    const loaded = sortedByLoad()
-    const maxA = loaded[0]
-    const others = totalLoops() - counts[maxA.id]
-    if (counts[maxA.id] <= others + 1) break
-    counts[maxA.id] -= 1
-    counts[loaded[loaded.length - 1].id] += 1
+  if (n >= 2) {
+    for (let guard = 0; guard < 1000; guard++) {
+      const loaded = sortedByLoad()
+      const maxA = loaded[0]
+      const others = totalLoops() - counts[maxA.id]
+      if (counts[maxA.id] <= others + 1) break
+      counts[maxA.id] -= 1
+      counts[loaded[loaded.length - 1].id] += 1
+    }
   }
 
   // --- Phase 2: gap-based ordering of the loops ---
@@ -71,15 +75,23 @@ export function generatePlan(athletes, discipline, previousDisciplineLastAthlete
   for (let pos = 0; pos < total; pos++) {
     const last = sequence.length > 0 ? sequence[sequence.length - 1] : null
 
-    const eligible = athletes.filter(a => {
-      if (remaining[a.id] <= 0) return false          // no loops left to place
-      if (a.id === last) return false                  // no back-to-back
-      if (sequence.length === 0 &&
+    // Preferences are relaxed only when forced (e.g. a solo team must repeat,
+    // or only the previous discipline's closer is left to open this one):
+    //   1. no back-to-back + don't reopen with the previous discipline's closer
+    //   2. allow back-to-back
+    //   3. allow back-to-back AND reopening
+    const pick = (allowRepeat, allowReopen) => athletes.filter(a => {
+      if (remaining[a.id] <= 0) return false
+      if (!allowRepeat && a.id === last) return false
+      if (!allowReopen && sequence.length === 0 &&
           previousDisciplineLastAthlete != null &&
-          a.id === previousDisciplineLastAthlete) return false // can't open the discipline
+          a.id === previousDisciplineLastAthlete) return false
       return true
     })
 
+    let eligible = pick(false, false)
+    if (eligible.length === 0) eligible = pick(true, false)
+    if (eligible.length === 0) eligible = pick(true, true)
     if (eligible.length === 0) break
 
     eligible.sort((x, y) => {

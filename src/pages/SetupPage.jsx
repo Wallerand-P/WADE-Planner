@@ -3,21 +3,25 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
-  ATHLETE_COLORS, GROUP_META, eventDisciplines, paceLabel, athleteLoopMinutes,
+  ATHLETE_COLORS, TEAM_SIZES, GROUP_META, eventDisciplines, paceLabel, athleteLoopMinutes,
 } from '../lib/raceUtils'
 import Layout from '../components/Layout'
 
-const DEFAULT_NAMES = ['W', 'A', 'D', 'E']
+const DEFAULT_NAMES = ['W', 'A', 'D', 'E', 'R', 'S']
 
-function defaultAthletes() {
-  return DEFAULT_NAMES.map((name, i) => ({
-    name,
-    color: ATHLETE_COLORS[i],
+function makeAthlete(i) {
+  return {
+    name: DEFAULT_NAMES[i] ?? `A${i + 1}`,
+    color: ATHLETE_COLORS[i % ATHLETE_COLORS.length],
     swim_pace: 20,
     bike_pace: 40,
     run_pace: 30,
     bike2_pace: '',
-  }))
+  }
+}
+
+function defaultAthletes(n = 4) {
+  return Array.from({ length: n }, (_, i) => makeAthlete(i))
 }
 
 export default function SetupPage() {
@@ -54,6 +58,14 @@ export default function SetupPage() {
     setAthletes(prev => prev.map((a, idx) => idx === i ? { ...a, [field]: value } : a))
   }
 
+  function setTeamSize(n) {
+    setAthletes(prev => {
+      if (n <= prev.length) return prev.slice(0, n)
+      const extra = Array.from({ length: n - prev.length }, (_, k) => makeAthlete(prev.length + k))
+      return [...prev, ...extra]
+    })
+  }
+
   function paceCols(a) {
     return {
       swim_pace: Number(a.swim_pace),
@@ -67,35 +79,32 @@ export default function SetupPage() {
     setSaving(true)
     setError('')
     try {
-      const hasIds = athletes.some(a => a.id)
+      // Remove athletes that were dropped (e.g. smaller team) and any slots
+      // that referenced them, so the FK stays valid.
+      const currentIds = new Set(athletes.filter(a => a.id).map(a => a.id))
+      const removed = (storeAthletes || []).filter(a => a.id && !currentIds.has(a.id))
+      for (const r of removed) {
+        await supabase.from('schedule_slots').delete().eq('athlete_id', r.id)
+        await supabase.from('athletes').delete().eq('id', r.id)
+      }
 
-      let saved
-      if (hasIds) {
-        await Promise.all(
-          athletes.map(a =>
-            supabase.from('athletes').update({
-              name: a.name,
-              color: a.color,
-              ...paceCols(a),
-            }).eq('id', a.id)
-          )
-        )
-        saved = athletes
-      } else {
-        const { data, error: insertErr } = await supabase
-          .from('athletes')
-          .insert(
-            athletes.map((a, i) => ({
-              room_code: roomCode,
-              name: a.name,
-              color: a.color,
-              position: i + 1,
-              ...paceCols(a),
-            }))
-          )
-          .select()
-        if (insertErr) throw insertErr
-        saved = data
+      // Update existing athletes; insert new ones — positions follow the list.
+      const saved = []
+      for (let i = 0; i < athletes.length; i++) {
+        const a = athletes[i]
+        if (a.id) {
+          const { error: upErr } = await supabase.from('athletes')
+            .update({ name: a.name, color: a.color, position: i + 1, ...paceCols(a) })
+            .eq('id', a.id)
+          if (upErr) throw upErr
+          saved.push({ ...a, position: i + 1 })
+        } else {
+          const { data, error: insErr } = await supabase.from('athletes')
+            .insert({ room_code: roomCode, name: a.name, color: a.color, position: i + 1, ...paceCols(a) })
+            .select().single()
+          if (insErr) throw insErr
+          saved.push(data)
+        }
       }
 
       const roomUpdates = { status: 'planning', event_id: eventId || null }
@@ -154,6 +163,23 @@ export default function SetupPage() {
               ))}
             </div>
           )}
+        </section>
+
+        <section>
+          <h2 className="label-eyebrow mb-3 px-1">Team size</h2>
+          <div className="flex gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10">
+            {TEAM_SIZES.map(n => (
+              <button
+                key={n}
+                onClick={() => setTeamSize(n)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                  athletes.length === n ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/45 hover:text-white/80'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
         </section>
 
         <section>

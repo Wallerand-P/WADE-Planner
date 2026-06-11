@@ -67,6 +67,36 @@ describe('generatePlan', () => {
     expect(c.A).toBeGreaterThan(c.B)
   })
 
+  it('solo team: one athlete does every loop (back-to-back allowed)', () => {
+    const solo = [{ id: 'A', loopDuration: 30 }]
+    const seq = generatePlan(solo, discipline, null) // 240 / 30 = 8 loops
+    console.log('Solo:', seq.join(' '))
+    expect(seq).toEqual(['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A'])
+  })
+
+  it('solo team still fills even if they closed the previous discipline', () => {
+    const solo = [{ id: 'A', loopDuration: 30 }]
+    const seq = generatePlan(solo, discipline, 'A')
+    expect(seq).toHaveLength(8)
+    expect(seq.every(id => id === 'A')).toBe(true)
+  })
+
+  it('duo team: alternates with no back-to-back', () => {
+    const duo = [{ id: 'A', loopDuration: 30 }, { id: 'B', loopDuration: 30 }]
+    const seq = generatePlan(duo, discipline, null)
+    console.log('Duo:', seq.join(' '))
+    expect(seq).toEqual(['A', 'B', 'A', 'B', 'A', 'B', 'A', 'B'])
+    expect(noBackToBack(seq)).toBe(true)
+  })
+
+  it('six athletes: balanced, no back-to-back', () => {
+    const six = ['A', 'B', 'C', 'D', 'E', 'F'].map(id => ({ id, loopDuration: 30 }))
+    const seq = generatePlan(six, discipline, null)
+    console.log('Six:', seq.join(' '))
+    expect(noBackToBack(seq)).toBe(true)
+    expect(seq).toHaveLength(8)
+  })
+
   it('is pure and deterministic (same inputs -> same output)', () => {
     const a = generatePlan(variedAthletes, discipline, 'A')
     const b = generatePlan(variedAthletes, discipline, 'A')
