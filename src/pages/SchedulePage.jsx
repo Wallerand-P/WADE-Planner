@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
   getSortedSlots, computeStartTimes, getCurrentSlot,
-  DISCIPLINE_ORDER, DISCIPLINE_META, formatDuration,
+  GROUP_META, eventDisciplines, formatDuration,
   eventLoopPoints, computePoints, fmtPoints,
 } from '../lib/raceUtils'
 import Layout from '../components/Layout'
@@ -48,6 +48,7 @@ export default function SchedulePage() {
     : null
 
   const points = event ? computePoints(slots, eventLoopPoints(event)) : null
+  const disciplines = eventDisciplines(event)
 
   return (
     <Layout title="Schedule" roomCode={roomCode} showHome backTo={racing ? '/race' : '/planning'}>
@@ -61,16 +62,16 @@ export default function SchedulePage() {
             </p>
           )}
 
-          {DISCIPLINE_ORDER.map(disc => {
-            const dslots = sorted.filter(s => s.discipline === disc)
+          {disciplines.map(disc => {
+            const dslots = sorted.filter(s => s.discipline === disc.key)
             if (dslots.length === 0) return null
-            const m = DISCIPLINE_META[disc]
+            const m = GROUP_META[disc.group]
             return (
-              <div key={disc}>
+              <div key={disc.key}>
                 <div className="flex items-center gap-2 mb-2.5 px-1">
                   <span className={`w-2.5 h-2.5 rounded-[3px] ${m.badge}`} />
                   <h2 className={`text-sm font-semibold uppercase tracking-[0.12em] ${m.text}`}>
-                    {m.label}
+                    {disc.label}
                   </h2>
                   <span className="text-xs text-white/30 font-mono tabular-nums">
                     from {timeLabel(startTimes[dslots[0].id])}
@@ -129,15 +130,15 @@ export default function SchedulePage() {
 
               <div className="space-y-1.5 pt-1 border-t border-white/[0.07]">
                 <p className="label-eyebrow pt-3 pb-0.5">Per discipline</p>
-                {DISCIPLINE_ORDER.map(d => {
-                  const m = DISCIPLINE_META[d]
+                {disciplines.map(d => {
+                  const m = GROUP_META[d.group]
                   return (
-                    <div key={d} className="flex items-center justify-between text-sm">
+                    <div key={d.key} className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-[3px] ${m.badge}`} />
-                        <span className="text-white/70">{m.label}</span>
+                        <span className="text-white/70">{d.label}</span>
                       </span>
-                      <span className="font-mono text-white/80 tabular-nums">{fmtPoints(points.byDiscipline[d])}</span>
+                      <span className="font-mono text-white/80 tabular-nums">{fmtPoints(points.byDiscipline[d.key] || 0)}</span>
                     </div>
                   )
                 })}

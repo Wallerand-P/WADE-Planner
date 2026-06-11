@@ -1,53 +1,85 @@
 import dayjs from 'dayjs'
 
-export const DISCIPLINE_ORDER = ['swim', 'bike', 'run']
+// Canonical ordering of every discipline key, used only to sort slots.
+export const DISCIPLINE_SORT = ['swim', 'bike', 'bike2', 'run']
 
-export const DISCIPLINE_DURATIONS = { swim: 240, bike: 720, run: 480 } // nominal minutes
-
-// Fixed start windows (minutes from race start). A discipline's loops may only
-// START within [start, end]; a loop may FINISH after `end`, and that overrun
-// pushes back the next discipline's start, shrinking its available time. The
-// next discipline can never start before its window opens (an early finish
-// doesn't add time).
-export const DISCIPLINE_WINDOWS = {
-  swim: { start: 0,   end: 240 },
-  bike: { start: 240, end: 960 },
-  run:  { start: 960, end: 1440 },
-}
-
-export const DISCIPLINE_META = {
-  swim: { label: 'Swimming', short: 'Swim', bg: 'bg-blue-500/20',   text: 'text-blue-400',   border: 'border-blue-500',   badge: 'bg-blue-500'   },
-  bike: { label: 'Cycling',  short: 'Bike', bg: 'bg-amber-500/20',  text: 'text-amber-400',  border: 'border-amber-500',  badge: 'bg-amber-500'  },
+// Styling + pace behaviour per discipline GROUP. A discipline (e.g. the two
+// cycling segments) maps to one of these groups for colour and pace formatting.
+export const GROUP_META = {
+  swim: { label: 'Swimming', short: 'Swim', bg: 'bg-blue-500/20',    text: 'text-blue-400',    border: 'border-blue-500',    badge: 'bg-blue-500'    },
+  bike: { label: 'Cycling',  short: 'Bike', bg: 'bg-amber-500/20',   text: 'text-amber-400',   border: 'border-amber-500',   badge: 'bg-amber-500'   },
   run:  { label: 'Running',  short: 'Run',  bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500', badge: 'bg-emerald-500' },
 }
 
 export const ATHLETE_COLORS = ['#f43f5e', '#a855f7', '#38bdf8', '#fb923c']
 
-// Points scored per kilometre, per discipline
+// Points scored per kilometre, per group (used as a fallback when an event
+// doesn't specify explicit per-loop points)
 export const POINTS_PER_KM = { swim: 15, bike: 1, run: 4 }
 
-// Map an `events` table row to per-discipline loop distances (km)
+// The ordered list of disciplines for an event — or the default swim/bike/run
+// when there's no event (or no second cycling segment). Each entry carries its
+// time window, loop distance/points, styling group, and the athlete pace field
+// it reads. Events with `bike2_km` set split cycling into two segments
+// (Cycling I / Cycling II) at `bike_split_min`.
+export function eventDisciplines(event) {
+  const num = v => (v == null || v === '' ? null : Number(v))
+  const hasBike2 = !!(event && num(event.bike2_km) != null)
+  const split = hasBike2 ? (num(event.bike_split_min) ?? 600) : 960
+
+  const pts = (explicit, km, group) => {
+    if (!event) return null
+    const e = num(explicit)
+    if (e != null) return e
+    return km != null ? km * POINTS_PER_KM[group] : null
+  }
+  const swimKm = event ? num(event.swim_km) : null
+  const bikeKm = event ? num(event.bike_km) : null
+  const bike2Km = event ? num(event.bike2_km) : null
+  const runKm = event ? num(event.run_km) : null
+
+  const list = [
+    { key: 'swim', group: 'swim', paceField: 'swim_pace', label: 'Swimming',
+      short: 'Swim', km: swimKm, points: pts(event && event.swim_points, swimKm, 'swim'),
+      window: { start: 0, end: 240 } },
+    { key: 'bike', group: 'bike', paceField: 'bike_pace',
+      label: hasBike2 ? 'Cycling I' : 'Cycling', short: hasBike2 ? 'Bike I' : 'Bike',
+      km: bikeKm, points: pts(event && event.bike_points, bikeKm, 'bike'),
+      window: { start: 240, end: split } },
+  ]
+  if (hasBike2) {
+    list.push({ key: 'bike2', group: 'bike', paceField: 'bike2_pace', label: 'Cycling II',
+      short: 'Bike II', km: bike2Km, points: pts(event.bike2_points, bike2Km, 'bike'),
+      window: { start: split, end: 960 }, deriveFrom: 'bike' })
+  }
+  list.push({ key: 'run', group: 'run', paceField: 'run_pace', label: 'Running',
+    short: 'Run', km: runKm, points: pts(event && event.run_points, runKm, 'run'),
+    window: { start: 960, end: 1440 } })
+  return list
+}
+
+// Convenience maps keyed by discipline key
 export function eventLengthsKm(event) {
-  return { swim: Number(event.swim_km), bike: Number(event.bike_km), run: Number(event.run_km) }
+  return Object.fromEntries(eventDisciplines(event).map(d => [d.key, d.km]))
 }
-
-// Default points for one loop of each discipline, from distance × points/km
-export function pointsPerLoop(lengthsKm) {
-  return DISCIPLINE_ORDER.reduce((acc, d) => {
-    acc[d] = lengthsKm[d] * POINTS_PER_KM[d]
-    return acc
-  }, {})
-}
-
-// Points for one loop of each discipline for an event. Uses the event's
-// explicit per-loop points when set, otherwise the distance-based default.
 export function eventLoopPoints(event) {
-  const fallback = pointsPerLoop(eventLengthsKm(event))
-  const explicit = { swim: event.swim_points, bike: event.bike_points, run: event.run_points }
-  return DISCIPLINE_ORDER.reduce((acc, d) => {
-    acc[d] = explicit[d] != null ? Number(explicit[d]) : fallback[d]
-    return acc
-  }, {})
+  return Object.fromEntries(eventDisciplines(event).map(d => [d.key, d.points]))
+}
+
+// Effective minutes-per-loop for an athlete on a discipline. Applies the
+// auto-derive for a derived segment (e.g. Bike II = Bike I pace scaled by the
+// distance ratio) when the athlete has no explicit override for it.
+export function athleteLoopMinutes(athlete, disc, disciplines) {
+  const raw = athlete[disc.paceField]
+  if (raw != null && raw !== '') return Number(raw)
+  if (disc.deriveFrom) {
+    const base = disciplines.find(d => d.key === disc.deriveFrom)
+    const basePace = base && athlete[base.paceField]
+    if (base && base.km && disc.km && basePace) {
+      return Math.round(Number(basePace) * disc.km / base.km)
+    }
+  }
+  return Number(raw) || 0
 }
 
 // Round points for display (one decimal, drop trailing .0)
@@ -59,12 +91,12 @@ export function fmtPoints(n) {
 // given the per-loop points map. Returns total + breakdown by discipline and
 // athlete.
 export function computePoints(slots, perLoop) {
-  const byDiscipline = { swim: 0, bike: 0, run: 0 }
+  const byDiscipline = {}
   const byAthlete = {}
   let total = 0
   for (const s of slots) {
     const pts = perLoop[s.discipline] || 0
-    byDiscipline[s.discipline] += pts
+    byDiscipline[s.discipline] = (byDiscipline[s.discipline] || 0) + pts
     byAthlete[s.athlete_id] = (byAthlete[s.athlete_id] || 0) + pts
     total += pts
   }
@@ -78,7 +110,7 @@ export function generateRoomCode() {
 
 export function getSortedSlots(slots) {
   return [...slots].sort((a, b) => {
-    const d = DISCIPLINE_ORDER.indexOf(a.discipline) - DISCIPLINE_ORDER.indexOf(b.discipline)
+    const d = DISCIPLINE_SORT.indexOf(a.discipline) - DISCIPLINE_SORT.indexOf(b.discipline)
     return d !== 0 ? d : a.slot_order - b.slot_order
   })
 }
@@ -91,19 +123,18 @@ export function getScheduledMinutes(slots, discipline) {
 
 // Available minutes per discipline given the scheduled loop totals, cascading
 // any boundary overrun into the next discipline. Also returns each discipline's
-// effective start (minutes from race start) and its nominal budget for
-// reference. Early finishes don't add time: a discipline can't start before its
-// window opens.
-export function computeDisciplineBudgets(slots) {
+// effective start (minutes from race start). Early finishes don't add time: a
+// discipline can't start before its window opens. `disciplines` is the ordered
+// list from eventDisciplines().
+export function computeDisciplineBudgets(slots, disciplines) {
   const budgets = {}
   const starts = {}
   let prevEnd = 0
-  for (const d of DISCIPLINE_ORDER) {
-    const w = DISCIPLINE_WINDOWS[d]
-    const start = Math.max(w.start, prevEnd)
-    starts[d] = start
-    budgets[d] = w.end - start
-    prevEnd = start + getScheduledMinutes(slots, d)
+  for (const d of disciplines) {
+    const start = Math.max(d.window.start, prevEnd)
+    starts[d.key] = start
+    budgets[d.key] = d.window.end - start
+    prevEnd = start + getScheduledMinutes(slots, d.key)
   }
   return { budgets, starts }
 }
@@ -146,14 +177,14 @@ function fmtMinSec(minutes) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-// Speed/pace label for one discipline, from a loop time (minutes) and loop
-// distance (km). Swim → min/100m, bike → km/h, run → min/km. Returns null if
+// Speed/pace label for a discipline group, from a loop time (minutes) and loop
+// distance (km). swim → min/100m, bike → km/h, run → min/km. Returns null if
 // inputs are missing.
-export function paceLabel(discipline, minutes, km) {
+export function paceLabel(group, minutes, km) {
   const min = Number(minutes)
   if (!min || !km) return null
-  if (discipline === 'swim') return `${fmtMinSec(min / (km * 10))}/100m`
-  if (discipline === 'run')  return `${fmtMinSec(min / km)}/km`
+  if (group === 'swim') return `${fmtMinSec(min / (km * 10))}/100m`
+  if (group === 'run')  return `${fmtMinSec(min / km)}/km`
   const kmh = km / (min / 60)
   return `${Math.round(kmh * 10) / 10} km/h`
 }

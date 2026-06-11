@@ -5,12 +5,12 @@ import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
   getCurrentSlot, computeStartTimes, getSortedSlots,
-  DISCIPLINE_META, formatCountdown, formatDuration,
+  GROUP_META, eventDisciplines, formatCountdown, formatDuration,
 } from '../lib/raceUtils'
 
 export default function LiveRacePage() {
   const navigate = useNavigate()
-  const { roomCode, room, athletes, slots, setSlots, upsertSlot, setRoom } = useRaceStore()
+  const { roomCode, room, event, athletes, slots, setSlots, upsertSlot, setRoom } = useRaceStore()
   const [now, setNow] = useState(Date.now())
   const [confirming, setConfirming] = useState(false)
   const [suggestion, setSuggestion] = useState(null)
@@ -60,7 +60,17 @@ export default function LiveRacePage() {
   const startTimes = computeStartTimes(slots, room.race_start_time)
   const currentSlot = getCurrentSlot(slots)
   const currentAthlete = athletes.find(a => a.id === currentSlot?.athlete_id)
-  const currentMeta = currentSlot ? DISCIPLINE_META[currentSlot.discipline] : null
+
+  // Map a slot's discipline key → its info (label/short/group), with a fallback
+  // so it works even before the event has loaded.
+  const discByKey = Object.fromEntries(eventDisciplines(event).map(d => [d.key, d]))
+  const discInfo = key => {
+    if (discByKey[key]) return discByKey[key]
+    const group = key && key.startsWith('bike') ? 'bike' : key
+    return { group, label: GROUP_META[group]?.label ?? key, short: GROUP_META[group]?.short ?? key }
+  }
+  const currentInfo = currentSlot ? discInfo(currentSlot.discipline) : null
+  const currentMeta = currentInfo ? GROUP_META[currentInfo.group] : null
 
   const slotStartMs = currentSlot ? startTimes[currentSlot.id] : null
   const slotEndMs = currentSlot
@@ -161,7 +171,7 @@ export default function LiveRacePage() {
           <div className="card p-5 relative overflow-hidden">
             <div className={`absolute inset-x-0 top-0 h-[3px] ${currentMeta.badge}`} />
             <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] mb-4 ${currentMeta.text}`}>
-              ● Now Racing · {currentMeta.label}
+              ● Now Racing · {currentInfo.label}
             </p>
             <div className="flex items-center gap-3.5 mb-5">
               <div className="w-12 h-12 rounded-full shrink-0 ring-2 ring-white/15"
@@ -268,13 +278,14 @@ export default function LiveRacePage() {
             <div className="space-y-2">
               {nextSlots.map(slot => {
                 const a = athletes.find(x => x.id === slot.athlete_id)
-                const m = DISCIPLINE_META[slot.discipline]
+                const info = discInfo(slot.discipline)
+                const m = GROUP_META[info.group]
                 const timeUntilMs = startTimes[slot.id] - now
                 return (
                   <div key={slot.id} className="card-inset px-4 py-3 flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a?.color }} />
                     <span className="flex-1 font-medium truncate">{a?.name}</span>
-                    <span className={`text-xs ${m.text}`}>{m.short}</span>
+                    <span className={`text-xs ${m.text}`}>{info.short}</span>
                     <span className="text-white/45 text-sm font-mono tabular-nums">
                       {timeUntilMs > 0 ? `in ${formatCountdown(timeUntilMs)}` : 'now'}
                     </span>

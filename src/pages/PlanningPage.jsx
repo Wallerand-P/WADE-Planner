@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
-  DISCIPLINE_ORDER, DISCIPLINE_DURATIONS, DISCIPLINE_META,
+  GROUP_META, eventDisciplines, athleteLoopMinutes,
   getSortedSlots, getScheduledMinutes, formatDuration, computeDisciplineBudgets,
   eventLoopPoints, fmtPoints,
 } from '../lib/raceUtils'
@@ -30,27 +30,29 @@ export default function PlanningPage() {
   const [confirmAutoFill, setConfirmAutoFill] = useState(false)
 
   const racing = room?.status === 'racing'
-  const meta = DISCIPLINE_META[activeTab]
-  const disciplineSlots = getSortedSlots(slots).filter(s => s.discipline === activeTab)
-  const scheduled = getScheduledMinutes(slots, activeTab)
+  const disciplines = eventDisciplines(event)
+  const activeDisc = disciplines.find(d => d.key === activeTab) || disciplines[0]
+  const meta = GROUP_META[activeDisc.group]
+  const disciplineSlots = getSortedSlots(slots).filter(s => s.discipline === activeDisc.key)
+  const scheduled = getScheduledMinutes(slots, activeDisc.key)
 
   // Available time per discipline, accounting for boundary overruns cascading
-  // from earlier disciplines (a swim that runs past 4h shrinks the bike budget).
-  const { budgets } = computeDisciplineBudgets(slots)
-  const total = budgets[activeTab]
-  const nominal = DISCIPLINE_DURATIONS[activeTab]
+  // from earlier disciplines (a swim that runs past its window shrinks cycling).
+  const { budgets } = computeDisciplineBudgets(slots, disciplines)
+  const total = budgets[activeDisc.key]
+  const nominal = activeDisc.window.end - activeDisc.window.start
 
   const loopPts = event ? eventLoopPoints(event) : null
-  const disciplinePoints = loopPts ? disciplineSlots.length * loopPts[activeTab] : null
+  const disciplinePoints = loopPts ? disciplineSlots.length * loopPts[activeDisc.key] : null
   const remaining = total - scheduled
 
-  // Cumulative volume per athlete (overall + per discipline)
+  // Minutes scheduled per athlete in the active discipline
   const volumeByAthlete = athletes.map(a => {
-    const byDisc = { swim: 0, bike: 0, run: 0 }
+    let mins = 0
     for (const s of slots) {
-      if (s.athlete_id === a.id) byDisc[s.discipline] += Number(s.planned_duration_minutes)
+      if (s.athlete_id === a.id && s.discipline === activeDisc.key) mins += Number(s.planned_duration_minutes)
     }
-    return { ...a, byDisc, total: byDisc.swim + byDisc.bike + byDisc.run }
+    return { ...a, mins }
   })
 
   // Auto-fill duration when athlete or tab changes
@@ -62,8 +64,13 @@ export default function PlanningPage() {
 
   useEffect(() => {
     const a = athletes.find(x => x.id === selAthlete)
-    if (a) setSelDuration(String(a[`${activeTab}_pace`]))
-  }, [selAthlete, activeTab, athletes])
+    if (a) setSelDuration(String(athleteLoopMinutes(a, activeDisc, disciplines)))
+  }, [selAthlete, activeTab, athletes]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the active tab valid when the event (and its disciplines) changes
+  useEffect(() => {
+    if (!disciplines.some(d => d.key === activeTab)) setActiveTab(disciplines[0].key)
+  }, [disciplines, activeTab])
 
   // Keep the plan in sync across phones in real time
   useEffect(() => {
@@ -88,11 +95,12 @@ export default function PlanningPage() {
     setConfirmAutoFill(false)
   }
 
-  // Athlete who did the last loop of the discipline before `discipline` (or null)
-  function previousDisciplineLastAthlete(discipline) {
-    const idx = DISCIPLINE_ORDER.indexOf(discipline)
+  // Athlete who did the last loop of the discipline before `disc` (or null)
+  function previousDisciplineLastAthlete(disc) {
+    const idx = disciplines.findIndex(d => d.key === disc.key)
     if (idx <= 0) return null
-    const prevSlots = getSortedSlots(slots).filter(s => s.discipline === DISCIPLINE_ORDER[idx - 1])
+    const prevKey = disciplines[idx - 1].key
+    const prevSlots = getSortedSlots(slots).filter(s => s.discipline === prevKey)
     return prevSlots.length > 0 ? prevSlots[prevSlots.length - 1].athlete_id : null
   }
 
@@ -101,32 +109,33 @@ export default function PlanningPage() {
     setAutoFilling(true)
     setError('')
     try {
+      const loopMin = a => athleteLoopMinutes(a, activeDisc, disciplines)
       const planAthletes = athletes.map(a => ({
         id: a.id,
         name: a.name,
-        loopDuration: Number(a[`${activeTab}_pace`]),
+        loopDuration: loopMin(a),
       }))
       const order = generatePlan(
         planAthletes,
-        { totalDuration: computeDisciplineBudgets(slots).budgets[activeTab] },
-        previousDisciplineLastAthlete(activeTab)
+        { totalDuration: computeDisciplineBudgets(slots, disciplines).budgets[activeDisc.key] },
+        previousDisciplineLastAthlete(activeDisc)
       )
 
       // Replace this discipline's slots with the generated plan
-      await supabase.from('schedule_slots').delete().eq('room_code', roomCode).eq('discipline', activeTab)
+      await supabase.from('schedule_slots').delete().eq('room_code', roomCode).eq('discipline', activeDisc.key)
       const rows = order.map((athleteId, i) => ({
         room_code: roomCode,
-        discipline: activeTab,
+        discipline: activeDisc.key,
         slot_order: i + 1,
         athlete_id: athleteId,
-        planned_duration_minutes: Number(athletes.find(a => a.id === athleteId)[`${activeTab}_pace`]),
+        planned_duration_minutes: loopMin(athletes.find(a => a.id === athleteId)),
       }))
       const { data, error: err } = rows.length
         ? await supabase.from('schedule_slots').insert(rows).select()
         : { data: [], error: null }
       if (err) throw err
 
-      setSlots([...slots.filter(s => s.discipline !== activeTab), ...data])
+      setSlots([...slots.filter(s => s.discipline !== activeDisc.key), ...data])
     } catch (e) {
       setError(e.message)
     } finally {
@@ -150,7 +159,7 @@ export default function PlanningPage() {
         .from('schedule_slots')
         .insert({
           room_code: roomCode,
-          discipline: activeTab,
+          discipline: activeDisc.key,
           slot_order: nextOrder,
           athlete_id: selAthlete,
           planned_duration_minutes: Number(selDuration),
@@ -229,27 +238,27 @@ export default function PlanningPage() {
     }
   }
 
-  const allFilled = DISCIPLINE_ORDER.every(
-    d => getScheduledMinutes(slots, d) >= budgets[d] - 5
+  const allFilled = disciplines.every(
+    d => getScheduledMinutes(slots, d.key) >= budgets[d.key] - 5
   )
 
   return (
     <Layout title="Planning" roomCode={roomCode} showHome backTo={room?.status === 'racing' ? '/race' : '/setup'}>
       {/* Discipline tabs */}
       <div className="flex gap-1 p-1 mb-5 rounded-2xl bg-white/[0.04] border border-white/10">
-        {DISCIPLINE_ORDER.map(d => {
-          const m = DISCIPLINE_META[d]
-          const done = getScheduledMinutes(slots, d) >= budgets[d] - 5
-          const active = activeTab === d
+        {disciplines.map(d => {
+          const m = GROUP_META[d.group]
+          const done = getScheduledMinutes(slots, d.key) >= budgets[d.key] - 5
+          const active = activeDisc.key === d.key
           return (
             <button
-              key={d}
-              onClick={() => switchTab(d)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+              key={d.key}
+              onClick={() => switchTab(d.key)}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
                 active ? `${m.badge} text-white shadow-lg` : 'text-white/45 hover:text-white/80'
               }`}
             >
-              {m.short}{done ? ' ✓' : ''}
+              {d.short}{done ? ' ✓' : ''}
             </button>
           )
         })}
@@ -259,7 +268,7 @@ export default function PlanningPage() {
       <div className="card p-4 mb-4">
         <div className="flex justify-between items-baseline mb-2.5">
           <div className="flex items-baseline gap-2">
-            <span className={`font-semibold ${meta.text}`}>{meta.label}</span>
+            <span className={`font-semibold ${meta.text}`}>{activeDisc.label}</span>
             {disciplinePoints != null && (
               <span className="text-xs font-mono text-white/45 tabular-nums">
                 {fmtPoints(disciplinePoints)} pts
@@ -305,7 +314,7 @@ export default function PlanningPage() {
             <div key={v.id} className="flex items-center gap-1.5 text-xs">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: v.color }} />
               <span className="text-white/70">{v.name}</span>
-              <span className="text-white/35 font-mono tabular-nums">{formatDuration(v.byDisc[activeTab])}</span>
+              <span className="text-white/35 font-mono tabular-nums">{formatDuration(v.mins)}</span>
             </div>
           ))}
         </div>
@@ -418,7 +427,7 @@ export default function PlanningPage() {
       ) : confirmAutoFill ? (
         <div className="card p-4 mt-4 space-y-3 ring-2 ring-indigo-400/50">
           <p className="text-sm text-white/70">
-            Replace the {disciplineSlots.length} existing {meta.label.toLowerCase()} slot(s) with an
+            Replace the {disciplineSlots.length} existing {activeDisc.label.toLowerCase()} slot(s) with an
             auto-generated plan?
           </p>
           <div className="flex gap-2">
@@ -436,7 +445,7 @@ export default function PlanningPage() {
           disabled={autoFilling}
           className="btn-secondary w-full mt-4 py-3 text-sm text-indigo-200"
         >
-          {autoFilling ? 'Generating…' : `✨ Auto-fill ${meta.label}`}
+          {autoFilling ? 'Generating…' : `✨ Auto-fill ${activeDisc.label}`}
         </button>
       )}
 

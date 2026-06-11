@@ -3,15 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
-  ATHLETE_COLORS, DISCIPLINE_ORDER, DISCIPLINE_META, eventLoopPoints, eventLengthsKm, paceLabel,
+  ATHLETE_COLORS, GROUP_META, eventDisciplines, paceLabel, athleteLoopMinutes,
 } from '../lib/raceUtils'
 import Layout from '../components/Layout'
-
-const PACE_FIELDS = [
-  { key: 'swim_pace', disc: 'swim', label: 'Swim', color: 'text-blue-400' },
-  { key: 'bike_pace', disc: 'bike', label: 'Bike', color: 'text-amber-400' },
-  { key: 'run_pace',  disc: 'run',  label: 'Run',  color: 'text-emerald-400' },
-]
 
 const DEFAULT_NAMES = ['W', 'A', 'D', 'E']
 
@@ -22,12 +16,13 @@ function defaultAthletes() {
     swim_pace: 20,
     bike_pace: 40,
     run_pace: 30,
+    bike2_pace: '',
   }))
 }
 
 export default function SetupPage() {
   const navigate = useNavigate()
-  const { roomCode, room, athletes: storeAthletes, setAthletes: setStoreAthletes, setRoom } = useRaceStore()
+  const { roomCode, room, athletes: storeAthletes, setAthletes: setStoreAthletes, setRoom, setEvent } = useRaceStore()
 
   const [athletes, setAthletes] = useState(() =>
     storeAthletes.length > 0 ? storeAthletes : defaultAthletes()
@@ -51,13 +46,21 @@ export default function SetupPage() {
   }, [room?.event_id])
 
   const event = events.find(e => e.id === eventId) || null
-  const lengthsKm = event ? eventLengthsKm(event) : null
-  const loopPoints = event ? eventLoopPoints(event) : null
+  const disciplines = eventDisciplines(event)
 
   if (!roomCode) { navigate('/'); return null }
 
   function update(i, field, value) {
     setAthletes(prev => prev.map((a, idx) => idx === i ? { ...a, [field]: value } : a))
+  }
+
+  function paceCols(a) {
+    return {
+      swim_pace: Number(a.swim_pace),
+      bike_pace: Number(a.bike_pace),
+      run_pace: Number(a.run_pace),
+      bike2_pace: a.bike2_pace == null || a.bike2_pace === '' ? null : Number(a.bike2_pace),
+    }
   }
 
   async function save() {
@@ -68,21 +71,17 @@ export default function SetupPage() {
 
       let saved
       if (hasIds) {
-        // Update existing athletes
         await Promise.all(
           athletes.map(a =>
             supabase.from('athletes').update({
               name: a.name,
               color: a.color,
-              swim_pace: Number(a.swim_pace),
-              bike_pace: Number(a.bike_pace),
-              run_pace: Number(a.run_pace),
+              ...paceCols(a),
             }).eq('id', a.id)
           )
         )
         saved = athletes
       } else {
-        // First time — insert all
         const { data, error: insertErr } = await supabase
           .from('athletes')
           .insert(
@@ -91,9 +90,7 @@ export default function SetupPage() {
               name: a.name,
               color: a.color,
               position: i + 1,
-              swim_pace: Number(a.swim_pace),
-              bike_pace: Number(a.bike_pace),
-              run_pace: Number(a.run_pace),
+              ...paceCols(a),
             }))
           )
           .select()
@@ -109,6 +106,7 @@ export default function SetupPage() {
 
       setStoreAthletes(saved)
       setRoom({ ...room, ...roomUpdates })
+      setEvent(event)
       navigate('/planning')
     } catch (e) {
       setError(e.message)
@@ -116,6 +114,8 @@ export default function SetupPage() {
       setSaving(false)
     }
   }
+
+  const paceCols2 = disciplines.length >= 4 ? 'grid-cols-2' : 'grid-cols-3'
 
   return (
     <Layout title="Setup" roomCode={roomCode} showHome>
@@ -139,22 +139,19 @@ export default function SetupPage() {
             ))}
           </select>
 
-          {lengthsKm && (
+          {event && (
             <div className="card p-4 mt-3 space-y-2.5">
-              {DISCIPLINE_ORDER.map(d => {
-                const m = DISCIPLINE_META[d]
-                return (
-                  <div key={d} className="flex items-center justify-between text-sm">
-                    <span className={`font-semibold ${m.text}`}>{m.label}</span>
-                    <span className="text-white/55 tabular-nums">
-                      {lengthsKm[d]} km
-                      <span className="text-white/30"> · </span>
-                      <span className="text-white/80 font-medium">{Math.round(loopPoints[d] * 10) / 10} pts</span>
-                      <span className="text-white/35">/loop</span>
-                    </span>
-                  </div>
-                )
-              })}
+              {disciplines.map(d => (
+                <div key={d.key} className="flex items-center justify-between text-sm">
+                  <span className={`font-semibold ${GROUP_META[d.group].text}`}>{d.label}</span>
+                  <span className="text-white/55 tabular-nums">
+                    {d.km} km
+                    <span className="text-white/30"> · </span>
+                    <span className="text-white/80 font-medium">{Math.round(d.points * 10) / 10} pts</span>
+                    <span className="text-white/35">/loop</span>
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -173,17 +170,23 @@ export default function SetupPage() {
                     className="input-field flex-1 px-3 py-2 font-semibold"
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {PACE_FIELDS.map(({ key, disc, label, color }) => {
-                    const speed = lengthsKm ? paceLabel(disc, athlete[key], lengthsKm[disc]) : null
+                <div className={`grid ${paceCols2} gap-2`}>
+                  {disciplines.map(d => {
+                    const raw = athlete[d.paceField]
+                    const isDerived = d.deriveFrom && (raw == null || raw === '')
+                    const effective = athleteLoopMinutes(athlete, d, disciplines)
+                    const speed = (event && d.km) ? paceLabel(d.group, effective, d.km) : null
                     return (
-                      <div key={key}>
-                        <label className={`block text-[11px] font-medium ${color} mb-1`}>{label}</label>
+                      <div key={d.key}>
+                        <label className={`block text-[11px] font-medium ${GROUP_META[d.group].text} mb-1`}>
+                          {d.short}
+                        </label>
                         <input
                           type="number"
                           min={1}
-                          value={athlete[key]}
-                          onChange={e => update(i, key, e.target.value)}
+                          value={raw ?? ''}
+                          onChange={e => update(i, d.paceField, e.target.value)}
+                          placeholder={isDerived ? String(effective || 'auto') : 'min'}
                           className="input-field w-full px-2 py-2 text-center text-sm tabular-nums"
                         />
                         {speed && (
