@@ -85,7 +85,8 @@ export default function LiveRacePage() {
 
   function startFinishEntry() {
     if (!currentSlot) return
-    setFinishTime(dayjs().format('YYYY-MM-DDTHH:mm'))
+    // Default to the theoretical (planned) finish time
+    setFinishTime(dayjs(slotEndMs).format('YYYY-MM-DDTHH:mm'))
     setEnteringFinish(true)
   }
 
@@ -196,14 +197,22 @@ export default function LiveRacePage() {
             {enteringFinish ? (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs text-white/45 mb-1.5">
-                    Finished at (started {dayjs(slotStartMs).format('HH:mm')})
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs text-white/45">
+                      Finished at (started {dayjs(slotStartMs).format('HH:mm')})
+                    </label>
+                    <button
+                      onClick={() => setFinishTime(dayjs().format('YYYY-MM-DDTHH:mm'))}
+                      className="text-xs font-semibold text-indigo-300 hover:text-indigo-200 active:scale-95 transition"
+                    >
+                      Set to now
+                    </button>
+                  </div>
                   <input
                     type="datetime-local"
                     value={finishTime}
                     onChange={e => setFinishTime(e.target.value)}
-                    className="input-field w-full px-3 py-2.5 focus:ring-emerald-400/60"
+                    className="input-field block w-full min-w-0 max-w-full appearance-none box-border px-3 py-2.5 focus:ring-emerald-400/60"
                   />
                   {finishTime && dayjs(finishTime).valueOf() <= slotStartMs && (
                     <p className="text-rose-400 text-xs mt-1.5">Must be after the loop started</p>
