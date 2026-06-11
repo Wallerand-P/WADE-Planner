@@ -139,7 +139,13 @@ export default function SetupPage() {
           <h2 className="label-eyebrow mb-3 px-1">Event</h2>
           <select
             value={eventId}
-            onChange={e => setEventId(e.target.value)}
+            onChange={e => {
+              const id = e.target.value
+              setEventId(id)
+              // Auto-fill the start time from the chosen event (still editable)
+              const ev = events.find(x => x.id === id)
+              if (ev?.default_start) setRaceStart(ev.default_start)
+            }}
             className="input-field w-full px-4 py-3.5"
           >
             <option value="">Select an event…</option>
