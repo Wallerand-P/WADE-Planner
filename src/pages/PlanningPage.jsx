@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
@@ -28,6 +29,10 @@ export default function PlanningPage() {
   // Auto-fill
   const [autoFilling, setAutoFilling] = useState(false)
   const [confirmAutoFill, setConfirmAutoFill] = useState(false)
+
+  // Launch dialog
+  const [launchOpen, setLaunchOpen] = useState(false)
+  const [launchTime, setLaunchTime] = useState('')
 
   const racing = room?.status === 'racing'
   const disciplines = eventDisciplines(event)
@@ -229,11 +234,22 @@ export default function PlanningPage() {
     setEditingId(null)
   }
 
-  async function launchRace() {
+  function openLaunch() {
+    setLaunchTime(
+      room?.race_start_time
+        ? dayjs(room.race_start_time).format('YYYY-MM-DDTHH:mm')
+        : dayjs().format('YYYY-MM-DDTHH:mm')
+    )
+    setLaunchOpen(true)
+  }
+
+  async function confirmLaunch() {
+    if (!launchTime) return
+    const iso = new Date(launchTime).toISOString()
     const { error: err } = await supabase
-      .from('rooms').update({ status: 'racing' }).eq('code', roomCode)
+      .from('rooms').update({ status: 'racing', race_start_time: iso }).eq('code', roomCode)
     if (!err) {
-      setRoom({ ...room, status: 'racing' })
+      setRoom({ ...room, status: 'racing', race_start_time: iso })
       navigate('/race')
     }
   }
@@ -463,9 +479,52 @@ export default function PlanningPage() {
           Resume race →
         </button>
       ) : (
-        <button onClick={launchRace} disabled={!allFilled} className="btn-success w-full mt-4 py-4 text-lg">
+        <button onClick={openLaunch} disabled={!allFilled} className="btn-success w-full mt-4 py-4 text-lg">
           {allFilled ? 'Launch Race →' : 'Fill all disciplines to launch'}
         </button>
+      )}
+
+      {/* Launch dialog — confirm / adjust the start time before racing */}
+      {launchOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-6 bg-black/60 backdrop-blur-sm"
+          onClick={() => setLaunchOpen(false)}
+        >
+          <div className="card w-full max-w-sm p-5 space-y-4 animate-rise" onClick={e => e.stopPropagation()}>
+            <div>
+              <h3 className="text-lg font-bold tracking-tight">Start the race</h3>
+              <p className="text-sm text-white/50 mt-1">
+                This start time anchors the whole schedule. Keep the planned time, start now, or pick another.
+              </p>
+            </div>
+
+            <div>
+              <label className="label-eyebrow block mb-1.5">Race start</label>
+              <input
+                type="datetime-local"
+                value={launchTime}
+                onChange={e => setLaunchTime(e.target.value)}
+                className="input-field block w-full min-w-0 max-w-full appearance-none box-border px-4 py-3"
+              />
+            </div>
+
+            <button
+              onClick={() => setLaunchTime(dayjs().format('YYYY-MM-DDTHH:mm'))}
+              className="btn-secondary w-full py-2.5 text-sm"
+            >
+              ⦿ Start now
+            </button>
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setLaunchOpen(false)} className="btn-secondary flex-1 py-3">
+                Cancel
+              </button>
+              <button onClick={confirmLaunch} disabled={!launchTime} className="btn-success flex-1 py-3">
+                Launch →
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </Layout>
   )
