@@ -114,8 +114,8 @@ export default function PointsChart({ snapshot, slots, raceStartTime, now }) {
       >
         {/* planned */}
         <path d={stepPath(planned, x, y)} {...stroke} stroke="rgba(255,255,255,0.30)" strokeWidth="1.5" />
-        {/* projection (dashed) */}
-        <path d={stepPath(projection, x, y)} {...stroke} stroke="rgba(129,140,248,0.45)" strokeWidth="1.5" strokeDasharray="4 4" />
+        {/* projection */}
+        <path d={stepPath(projection, x, y)} {...stroke} stroke="rgba(56,189,248,0.65)" strokeWidth="1.5" />
         {/* actual */}
         <path d={stepPath(actual, x, y)} {...stroke} stroke="#818cf8" strokeWidth="2.5" />
         {/* now marker */}
@@ -135,7 +135,7 @@ export default function PointsChart({ snapshot, slots, raceStartTime, now }) {
               Actual · {fmtPoints(actualPts)} pts
             </span>
             <span className="flex items-center gap-1.5 text-white/55">
-              <span className="inline-block w-4 h-0 border-t-2 border-dashed border-indigo-400/50" />
+              <span className="inline-block w-4 h-0 border-t-2 border-sky-400/65" />
               Projected · {fmtPoints(projectedTotal)} pts
             </span>
             <span className="flex items-center gap-1.5 text-white/55">
