@@ -142,12 +142,23 @@ export function computeDisciplineBudgets(slots, disciplines) {
   return { budgets, starts }
 }
 
-// Returns a map of slotId → planned start time (ms), accounting for confirmed actuals
-export function computeStartTimes(slots, raceStartTime) {
+// Returns a map of slotId → planned start time (ms), accounting for confirmed
+// actuals. When `disciplines` is passed, a discipline can't begin before its
+// structural start time even if the team is ahead — e.g. cycling never starts
+// before race-hour 4. Falling behind still slides everything later as usual.
+export function computeStartTimes(slots, raceStartTime, disciplines = null) {
   const sorted = getSortedSlots(slots)
+  const raceStartMs = dayjs(raceStartTime).valueOf()
+  const windowStart = disciplines
+    ? Object.fromEntries(disciplines.map(d => [d.key, d.window.start]))
+    : null
   const result = {}
-  let cursor = dayjs(raceStartTime).valueOf()
+  let cursor = raceStartMs
   for (const slot of sorted) {
+    // Floor to the discipline's structural start. It's a max, so it only bites
+    // when ahead; when behind, the cursor is already past it (no-op).
+    const ws = windowStart && windowStart[slot.discipline]
+    if (ws != null) cursor = Math.max(cursor, raceStartMs + ws * 60_000)
     result[slot.id] = cursor
     if (slot.confirmed && slot.actual_end_time) {
       cursor = dayjs(slot.actual_end_time).valueOf()

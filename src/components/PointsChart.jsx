@@ -18,13 +18,22 @@ function stepPath(pts, x, y) {
   return d
 }
 
-export default function PointsChart({ snapshot, slots, raceStartTime, now }) {
+export default function PointsChart({ snapshot, slots, raceStartTime, disciplines, now }) {
   const [expanded, setExpanded] = useState(false)
 
   const perLoop = snapshot?.points
   if (!perLoop || !Array.isArray(snapshot.slots) || snapshot.slots.length === 0) return null
 
   const pts = d => Number(perLoop[d]) || 0
+  // Structural start of each discipline — a loop can't begin before it, so the
+  // curves pause (flat) when a discipline finishes ahead of its window.
+  const winStart = disciplines
+    ? Object.fromEntries(disciplines.map(d => [d.key, d.window.start]))
+    : {}
+  const floorStart = (t, disc, anchor) => {
+    const ws = winStart[disc]
+    return ws != null ? Math.max(t, anchor + ws * 60_000) : t
+  }
 
   // Planned curve — from the frozen snapshot
   const snapStartMs = dayjs(snapshot.start).valueOf()
@@ -32,7 +41,7 @@ export default function PointsChart({ snapshot, slots, raceStartTime, now }) {
   {
     let t = snapStartMs, p = 0
     for (const s of snapshot.slots) {
-      t += Number(s.minutes) * 60_000
+      t = floorStart(t, s.discipline, snapStartMs) + Number(s.minutes) * 60_000
       p += pts(s.discipline)
       planned.push({ t, p })
     }
@@ -58,7 +67,7 @@ export default function PointsChart({ snapshot, slots, raceStartTime, now }) {
     let t = cursor, p = actualPts
     for (const s of sorted) {
       if (s.confirmed) continue
-      t += Number(s.planned_duration_minutes) * 60_000
+      t = floorStart(t, s.discipline, raceStartMs) + Number(s.planned_duration_minutes) * 60_000
       p += pts(s.discipline)
       projection.push({ t, p })
     }

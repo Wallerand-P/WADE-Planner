@@ -58,13 +58,14 @@ export default function LiveRacePage() {
   const raceStartMs = dayjs(room.race_start_time).valueOf()
   const raceElapsed = now - raceStartMs
   const sortedSlots = getSortedSlots(slots)
-  const startTimes = computeStartTimes(slots, room.race_start_time)
+  const disciplines = eventDisciplines(event)
+  const startTimes = computeStartTimes(slots, room.race_start_time, disciplines)
   const currentSlot = getCurrentSlot(slots)
   const currentAthlete = athletes.find(a => a.id === currentSlot?.athlete_id)
 
   // Map a slot's discipline key → its info (label/short/group), with a fallback
   // so it works even before the event has loaded.
-  const discByKey = Object.fromEntries(eventDisciplines(event).map(d => [d.key, d]))
+  const discByKey = Object.fromEntries(disciplines.map(d => [d.key, d]))
   const discInfo = key => {
     if (discByKey[key]) return discByKey[key]
     const group = key && key.startsWith('bike') ? 'bike' : key
@@ -78,6 +79,10 @@ export default function LiveRacePage() {
     ? slotStartMs + Number(currentSlot.planned_duration_minutes) * 60_000
     : null
   const timeRemaining = slotEndMs ? slotEndMs - now : 0
+  // The current loop can't begin before its discipline's structural start, so
+  // it may be in a "waiting at the line" gap (ahead of schedule).
+  const waiting = slotStartMs != null && now < slotStartMs
+  const untilStart = waiting ? slotStartMs - now : 0
 
   const currentIndex = currentSlot
     ? sortedSlots.findIndex(s => s.id === currentSlot.id)
@@ -174,6 +179,7 @@ export default function LiveRacePage() {
             snapshot={room.plan_snapshot}
             slots={slots}
             raceStartTime={room.race_start_time}
+            disciplines={disciplines}
             now={now}
           />
         )}
@@ -182,8 +188,8 @@ export default function LiveRacePage() {
         {currentSlot && currentAthlete ? (
           <div className="card p-5 relative overflow-hidden">
             <div className={`absolute inset-x-0 top-0 h-[3px] ${currentMeta.badge}`} />
-            <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] mb-4 ${currentMeta.text}`}>
-              ● Now Racing · {currentInfo.label}
+            <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] mb-4 ${waiting ? 'text-sky-300' : currentMeta.text}`}>
+              {waiting ? '◷ Starting soon' : '● Now Racing'} · {currentInfo.label}
             </p>
             <div className="flex items-center gap-3.5 mb-5">
               <div className="w-12 h-12 rounded-full shrink-0 ring-2 ring-white/15"
@@ -196,12 +202,12 @@ export default function LiveRacePage() {
               </div>
               <div className="text-right">
                 <p className={`font-mono text-3xl font-bold tabular-nums ${
-                  timeRemaining < 0 ? 'text-rose-400' : 'text-white'
+                  waiting ? 'text-sky-300' : timeRemaining < 0 ? 'text-rose-400' : 'text-white'
                 }`}>
-                  {formatCountdown(Math.abs(timeRemaining))}
+                  {formatCountdown(waiting ? untilStart : Math.abs(timeRemaining))}
                 </p>
                 <p className="text-[11px] text-white/40">
-                  {timeRemaining >= 0 ? 'remaining' : 'overtime'}
+                  {waiting ? 'until start' : timeRemaining >= 0 ? 'remaining' : 'overtime'}
                 </p>
               </div>
             </div>

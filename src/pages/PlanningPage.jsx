@@ -6,7 +6,7 @@ import { useRaceStore } from '../store/raceStore'
 import {
   GROUP_META, eventDisciplines, athleteLoopMinutes,
   getSortedSlots, getScheduledMinutes, formatDuration, computeDisciplineBudgets,
-  eventLoopPoints, fmtPoints,
+  computeStartTimes, eventLoopPoints, fmtPoints,
 } from '../lib/raceUtils'
 import { generatePlan } from '../lib/generatePlan'
 import Layout from '../components/Layout'
@@ -50,6 +50,39 @@ export default function PlanningPage() {
   const loopPts = event ? eventLoopPoints(event) : null
   const disciplinePoints = loopPts ? disciplineSlots.length * loopPts[activeDisc.key] : null
   const remaining = total - scheduled
+
+  // Boundary flags, anchored on real progress: projected start times (with the
+  // structural-start floor + confirmed actuals) vs each discipline's cut-off.
+  const baseMs = dayjs(room?.race_start_time || 0).valueOf()
+  const startTimes = computeStartTimes(slots, room?.race_start_time || 0, disciplines)
+  const slotBoundaryFlag = (slot, disc) => {
+    const startMs = startTimes[slot.id]
+    if (startMs == null) return null
+    const endMs = startMs + Number(slot.planned_duration_minutes) * 60_000
+    const winEndMs = baseMs + disc.window.end * 60_000
+    if (startMs >= winEndMs) return 'impossible' // can't even begin in time
+    if (endMs > winEndMs) return 'over'          // begins in time, ends past it
+    return null
+  }
+  // Whether each discipline has any over-the-line loops (for the tab markers)
+  const overflowByDisc = Object.fromEntries(
+    disciplines.map(d => [
+      d.key,
+      getSortedSlots(slots).some(s => s.discipline === d.key && slotBoundaryFlag(s, d)),
+    ])
+  )
+  // Spare room before the active discipline's cut-off → how many more loops fit
+  const cutoffMin = activeDisc.window.end
+  const lastDiscSlot = disciplineSlots[disciplineSlots.length - 1]
+  const discEndMs = lastDiscSlot
+    ? startTimes[lastDiscSlot.id] + Number(lastDiscSlot.planned_duration_minutes) * 60_000
+    : baseMs + activeDisc.window.start * 60_000
+  const spareMin = (baseMs + cutoffMin * 60_000 - discEndMs) / 60_000
+  const repLoopMin = disciplineSlots.length
+    ? Math.min(...disciplineSlots.map(s => Number(s.planned_duration_minutes)))
+    : null
+  const roomForMore = repLoopMin && spareMin >= repLoopMin ? Math.floor(spareMin / repLoopMin) : 0
+  const overCount = disciplineSlots.filter(s => slotBoundaryFlag(s, activeDisc)).length
 
   // Minutes scheduled per athlete in the active discipline
   const volumeByAthlete = athletes.map(a => {
@@ -285,7 +318,7 @@ export default function PlanningPage() {
                 active ? `${m.badge} text-white shadow-lg` : 'text-white/45 hover:text-white/80'
               }`}
             >
-              {d.short}{done ? ' ✓' : ''}
+              {d.short}{overflowByDisc[d.key] ? ' ⚠' : done ? ' ✓' : ''}
             </button>
           )
         })}
@@ -334,6 +367,17 @@ export default function PlanningPage() {
             </span>
           )}
         </p>
+
+        {/* Boundary advisory — user adjusts the plan manually */}
+        {overCount > 0 ? (
+          <p className="text-xs text-rose-300/90 mt-1.5">
+            ⚠ {overCount} loop{overCount > 1 ? 's' : ''} past the {formatDuration(cutoffMin)} cut-off — trim or move
+          </p>
+        ) : roomForMore >= 1 ? (
+          <p className="text-xs text-sky-300/90 mt-1.5">
+            ↗ Room for ~{roomForMore} more loop{roomForMore > 1 ? 's' : ''} before {formatDuration(cutoffMin)}
+          </p>
+        ) : null}
 
         {/* Per-athlete volume in this discipline */}
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3.5 pt-3.5 border-t border-white/[0.07]">
@@ -396,6 +440,24 @@ export default function PlanningPage() {
                 <span className="text-white/30 text-sm w-4 shrink-0 tabular-nums">{i + 1}</span>
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a?.color }} />
                 <span className="flex-1 font-medium truncate">{a?.name ?? '?'}</span>
+                {(() => {
+                  const f = slotBoundaryFlag(slot, activeDisc)
+                  if (!f) return null
+                  return (
+                    <span
+                      className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${
+                        f === 'impossible' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'
+                      }`}
+                      title={
+                        f === 'impossible'
+                          ? `Starts after the ${formatDuration(cutoffMin)} cut-off`
+                          : `Ends after the ${formatDuration(cutoffMin)} cut-off`
+                      }
+                    >
+                      {f === 'impossible' ? 'past' : 'over'}
+                    </span>
+                  )
+                })()}
                 <span className="text-white/45 text-sm font-mono mr-1 tabular-nums">
                   {formatDuration(slot.planned_duration_minutes)}
                 </span>

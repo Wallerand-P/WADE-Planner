@@ -34,7 +34,8 @@ export default function SchedulePage() {
   const racing = room?.status === 'racing'
   const hasClock = !!room?.race_start_time
   const baseMs = hasClock ? dayjs(room.race_start_time).valueOf() : 0
-  const startTimes = computeStartTimes(slots, hasClock ? room.race_start_time : 0)
+  const disciplines = eventDisciplines(event)
+  const startTimes = computeStartTimes(slots, hasClock ? room.race_start_time : 0, disciplines)
   const currentSlot = racing ? getCurrentSlot(slots) : null
   const sorted = getSortedSlots(slots)
   const athleteById = Object.fromEntries(athletes.map(a => [a.id, a]))
@@ -48,7 +49,6 @@ export default function SchedulePage() {
     : null
 
   const points = event ? computePoints(slots, eventLoopPoints(event)) : null
-  const disciplines = eventDisciplines(event)
 
   return (
     <Layout title="Schedule" roomCode={roomCode} showHome backTo={racing ? '/race' : '/planning'}>
