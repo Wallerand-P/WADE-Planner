@@ -246,10 +246,21 @@ export default function PlanningPage() {
   async function confirmLaunch() {
     if (!launchTime) return
     const iso = new Date(launchTime).toISOString()
+    // Freeze the plan as the baseline for the plan-vs-reality chart.
+    // Re-launching overwrites the previous snapshot (re-baselines).
+    const snapshot = {
+      start: iso,
+      points: event ? eventLoopPoints(event) : null,
+      slots: getSortedSlots(slots).map(s => ({
+        discipline: s.discipline,
+        minutes: Number(s.planned_duration_minutes),
+      })),
+    }
+    const updates = { status: 'racing', race_start_time: iso, plan_snapshot: snapshot }
     const { error: err } = await supabase
-      .from('rooms').update({ status: 'racing', race_start_time: iso }).eq('code', roomCode)
+      .from('rooms').update(updates).eq('code', roomCode)
     if (!err) {
-      setRoom({ ...room, status: 'racing', race_start_time: iso })
+      setRoom({ ...room, ...updates })
       navigate('/race')
     }
   }

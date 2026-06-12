@@ -53,12 +53,18 @@ create table if not exists rooms (
   event_id         text,
   status           text        not null default 'setup',  -- setup | planning | racing | finished
   race_start_time  timestamptz,
+  -- Frozen copy of the schedule taken when the race is launched, so the live
+  -- race can be compared to the original plan even after slots are edited.
+  -- Shape: { start, points: {disc: ptsPerLoop}, slots: [{discipline, minutes}] }.
+  -- Re-launching the race overwrites it (re-baselines).
+  plan_snapshot    jsonb,
   created_at       timestamptz not null default now()
 );
 
 -- Migrations for an existing rooms table:
 alter table rooms add column if not exists name text;
 alter table rooms add column if not exists event_id text;
+alter table rooms add column if not exists plan_snapshot jsonb;
 
 create table if not exists athletes (
   id         uuid  primary key default gen_random_uuid(),

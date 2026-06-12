@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm create *)"
+      "Bash(npm create *)",
+      "Bash(npm run *)",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

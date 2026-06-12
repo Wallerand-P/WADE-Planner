@@ -7,6 +7,7 @@ import {
   getCurrentSlot, computeStartTimes, getSortedSlots,
   GROUP_META, eventDisciplines, formatCountdown, formatDuration,
 } from '../lib/raceUtils'
+import PointsChart from '../components/PointsChart'
 
 export default function LiveRacePage() {
   const navigate = useNavigate()
@@ -166,6 +167,16 @@ export default function LiveRacePage() {
             Started {dayjs(room.race_start_time).format('HH:mm')}
           </p>
         </div>
+
+        {/* Plan vs reality points chart (rooms launched before snapshots have none) */}
+        {room.plan_snapshot && (
+          <PointsChart
+            snapshot={room.plan_snapshot}
+            slots={slots}
+            raceStartTime={room.race_start_time}
+            now={now}
+          />
+        )}
 
         {/* Current slot card */}
         {currentSlot && currentAthlete ? (
