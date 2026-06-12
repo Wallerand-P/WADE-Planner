@@ -53,36 +53,38 @@ export default function PlanningPage() {
 
   // Boundary flags, anchored on real progress: projected start times (with the
   // structural-start floor + confirmed actuals) vs each discipline's cut-off.
+  // A loop is only a problem when it would START after the cut-off — a loop
+  // already underway at the cut-off is fine and still counts, so running past
+  // the line is NOT flagged.
   const baseMs = dayjs(room?.race_start_time || 0).valueOf()
   const startTimes = computeStartTimes(slots, room?.race_start_time || 0, disciplines)
-  const slotBoundaryFlag = (slot, disc) => {
+  const startsAfterCutoff = (slot, disc) => {
     const startMs = startTimes[slot.id]
-    if (startMs == null) return null
-    const endMs = startMs + Number(slot.planned_duration_minutes) * 60_000
-    const winEndMs = baseMs + disc.window.end * 60_000
-    if (startMs >= winEndMs) return 'impossible' // can't even begin in time
-    if (endMs > winEndMs) return 'over'          // begins in time, ends past it
-    return null
+    return startMs != null && startMs >= baseMs + disc.window.end * 60_000
   }
-  // Whether each discipline has any over-the-line loops (for the tab markers)
+  // Whether each discipline has any too-late loops (for the tab markers)
   const overflowByDisc = Object.fromEntries(
     disciplines.map(d => [
       d.key,
-      getSortedSlots(slots).some(s => s.discipline === d.key && slotBoundaryFlag(s, d)),
+      getSortedSlots(slots).some(s => s.discipline === d.key && startsAfterCutoff(s, d)),
     ])
   )
-  // Spare room before the active discipline's cut-off → how many more loops fit
+  // Spare room before the active discipline's cut-off → how many more loops can
+  // still START in time. A loop only needs to begin before the cut-off (it may
+  // finish over the line), so the last valid start can sit just shy of it.
   const cutoffMin = activeDisc.window.end
+  const cutoffMs = baseMs + cutoffMin * 60_000
   const lastDiscSlot = disciplineSlots[disciplineSlots.length - 1]
-  const discEndMs = lastDiscSlot
+  const nextStartMs = lastDiscSlot
     ? startTimes[lastDiscSlot.id] + Number(lastDiscSlot.planned_duration_minutes) * 60_000
     : baseMs + activeDisc.window.start * 60_000
-  const spareMin = (baseMs + cutoffMin * 60_000 - discEndMs) / 60_000
   const repLoopMin = disciplineSlots.length
     ? Math.min(...disciplineSlots.map(s => Number(s.planned_duration_minutes)))
     : null
-  const roomForMore = repLoopMin && spareMin >= repLoopMin ? Math.floor(spareMin / repLoopMin) : 0
-  const overCount = disciplineSlots.filter(s => slotBoundaryFlag(s, activeDisc)).length
+  const roomForMore = repLoopMin && nextStartMs < cutoffMs
+    ? Math.floor((cutoffMs - nextStartMs - 1) / (repLoopMin * 60_000)) + 1
+    : 0
+  const lateCount = disciplineSlots.filter(s => startsAfterCutoff(s, activeDisc)).length
 
   // Minutes scheduled per athlete in the active discipline
   const volumeByAthlete = athletes.map(a => {
@@ -369,9 +371,9 @@ export default function PlanningPage() {
         </p>
 
         {/* Boundary advisory — user adjusts the plan manually */}
-        {overCount > 0 ? (
+        {lateCount > 0 ? (
           <p className="text-xs text-rose-300/90 mt-1.5">
-            ⚠ {overCount} loop{overCount > 1 ? 's' : ''} past the {formatDuration(cutoffMin)} cut-off — trim or move
+            ⚠ {lateCount} loop{lateCount > 1 ? 's' : ''} can't start before the {formatDuration(cutoffMin)} cut-off — trim or move
           </p>
         ) : roomForMore >= 1 ? (
           <p className="text-xs text-sky-300/90 mt-1.5">
@@ -440,24 +442,14 @@ export default function PlanningPage() {
                 <span className="text-white/30 text-sm w-4 shrink-0 tabular-nums">{i + 1}</span>
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a?.color }} />
                 <span className="flex-1 font-medium truncate">{a?.name ?? '?'}</span>
-                {(() => {
-                  const f = slotBoundaryFlag(slot, activeDisc)
-                  if (!f) return null
-                  return (
-                    <span
-                      className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${
-                        f === 'impossible' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'
-                      }`}
-                      title={
-                        f === 'impossible'
-                          ? `Starts after the ${formatDuration(cutoffMin)} cut-off`
-                          : `Ends after the ${formatDuration(cutoffMin)} cut-off`
-                      }
-                    >
-                      {f === 'impossible' ? 'past' : 'over'}
-                    </span>
-                  )
-                })()}
+                {startsAfterCutoff(slot, activeDisc) && (
+                  <span
+                    className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 bg-rose-500/20 text-rose-300"
+                    title={`Starts after the ${formatDuration(cutoffMin)} cut-off`}
+                  >
+                    past
+                  </span>
+                )}
                 <span className="text-white/45 text-sm font-mono mr-1 tabular-nums">
                   {formatDuration(slot.planned_duration_minutes)}
                 </span>
