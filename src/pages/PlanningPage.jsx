@@ -10,6 +10,7 @@ import {
 } from '../lib/raceUtils'
 import { generatePlan } from '../lib/generatePlan'
 import Layout from '../components/Layout'
+import LiveResultsConfig from '../components/LiveResultsConfig'
 
 export default function PlanningPage() {
   const navigate = useNavigate()
@@ -306,6 +307,11 @@ export default function PlanningPage() {
 
   return (
     <Layout title="Planning" roomCode={roomCode} showHome backTo={room?.status === 'racing' ? '/race' : '/setup'}>
+      {/* Live results connection (klikego) */}
+      <div className="mb-5">
+        <LiveResultsConfig />
+      </div>
+
       {/* Discipline tabs */}
       <div className="flex gap-1 p-1 mb-5 rounded-2xl bg-white/[0.04] border border-white/10">
         {disciplines.map(d => {

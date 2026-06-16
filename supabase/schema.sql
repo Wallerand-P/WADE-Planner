@@ -58,6 +58,16 @@ create table if not exists rooms (
   -- Shape: { start, points: {disc: ptsPerLoop}, slots: [{discipline, minutes}] }.
   -- Re-launching the race overwrites it (re-baselines).
   plan_snapshot    jsonb,
+  -- Live-results sync (klikego). When results_confirmed is true the room is in
+  -- "Authority" mode: the schedule mirrors the official klikego results instead
+  -- of manual per-loop confirmation. reference/dossard/category identify the
+  -- team's page; results_synced_at = last successful fetch+parse (NOT last new
+  -- lap — laps are sparse). See docs/live-results-sync.md.
+  results_reference text,
+  results_dossard   text,
+  results_category  text,
+  results_confirmed boolean not null default false,
+  results_synced_at timestamptz,
   created_at       timestamptz not null default now()
 );
 
@@ -65,6 +75,11 @@ create table if not exists rooms (
 alter table rooms add column if not exists name text;
 alter table rooms add column if not exists event_id text;
 alter table rooms add column if not exists plan_snapshot jsonb;
+alter table rooms add column if not exists results_reference text;
+alter table rooms add column if not exists results_dossard   text;
+alter table rooms add column if not exists results_category  text;
+alter table rooms add column if not exists results_confirmed boolean not null default false;
+alter table rooms add column if not exists results_synced_at timestamptz;
 
 create table if not exists athletes (
   id         uuid  primary key default gen_random_uuid(),
@@ -75,11 +90,13 @@ create table if not exists athletes (
   swim_pace  int   not null default 20,  -- minutes per loop
   bike_pace  int   not null default 40,
   run_pace   int   not null default 30,
-  bike2_pace int                          -- optional override for the 2nd cycling segment (null = auto-derived)
+  bike2_pace int,                         -- optional override for the 2nd cycling segment (null = auto-derived)
+  bib_suffix int                          -- klikego athlete number within the team (e.g. 5 in N°6105-5); links live results to this athlete
 );
 
 -- Migration for an existing athletes table:
 alter table athletes add column if not exists bike2_pace int;
+alter table athletes add column if not exists bib_suffix int;
 
 create table if not exists schedule_slots (
   id                       uuid    primary key default gen_random_uuid(),
@@ -91,8 +108,14 @@ create table if not exists schedule_slots (
   actual_start_time        timestamptz,
   actual_end_time          timestamptz,
   confirmed                boolean not null default false,
+  -- A human has hand-edited this slot; live-results sync must never overwrite or
+  -- delete it (the lock wins). Cleared by "revert to live". See docs/live-results-sync.md.
+  manual_override          boolean not null default false,
   created_at               timestamptz not null default now()
 );
+
+-- Migration for an existing schedule_slots table:
+alter table schedule_slots add column if not exists manual_override boolean not null default false;
 
 -- Enable realtime for all three tables
 alter publication supabase_realtime add table rooms;
