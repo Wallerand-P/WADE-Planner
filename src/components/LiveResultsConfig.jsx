@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import dayjs from 'dayjs'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import { parseKlikegoUrl, fetchTeamList, fetchTeamDetail } from '../lib/klikegoClient'
+import { syncLiveResults } from '../lib/syncLiveResults'
 
 // Normalise a name for fuzzy matching (lowercase, strip accents/punctuation)
 function norm(s) {
@@ -25,8 +27,10 @@ function suggestAthleteId(klikegoName, athletes) {
 }
 
 export default function LiveResultsConfig() {
-  const { roomCode, room, athletes, setRoom, setAthletes } = useRaceStore()
+  const { roomCode, room, event, athletes, slots, setRoom, setAthletes, setSlots } = useRaceStore()
   const [open, setOpen] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
   const [step, setStep] = useState('link') // link | team | map
   const [link, setLink] = useState('')
   const [src, setSrc] = useState(null)
@@ -112,18 +116,40 @@ export default function LiveResultsConfig() {
     setBusy(false); setOpen(false); reset()
   }
 
+  async function syncNow() {
+    setSyncing(true); setSyncMsg('')
+    try {
+      const r = await syncLiveResults({ room, event, athletes, slots })
+      const { data } = await supabase.from('schedule_slots').select('*').eq('room_code', roomCode)
+      if (data) setSlots(data)
+      setRoom({ ...room, results_synced_at: r.syncedAt })
+      setSyncMsg(`✓ ${r.lapCount} laps · ${r.updated} written${r.removed ? `, ${r.removed} removed` : ''}${r.skipped ? `, ${r.skipped} locked` : ''}`)
+    } catch (e) { setSyncMsg('⚠ ' + e.message) } finally { setSyncing(false) }
+  }
+
   // ---- Connected (collapsed) summary ----
   if (connected && !open) {
     return (
-      <div className="card p-4 flex items-center gap-3">
-        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_2px_rgba(52,211,153,0.5)]" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-emerald-300">Live results connected</p>
-          <p className="text-xs text-white/45 truncate">
-            Bib {room.results_dossard} · {room.results_category} · auto-syncing the schedule
-          </p>
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_2px_rgba(52,211,153,0.5)]" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-emerald-300">Live results connected</p>
+            <p className="text-xs text-white/45 truncate">
+              Bib {room.results_dossard} · {room.results_category}
+              {room.results_synced_at
+                ? ` · synced ${dayjs(room.results_synced_at).format('HH:mm:ss')}`
+                : ' · not synced yet'}
+            </p>
+          </div>
+          <button onClick={() => { setOpen(true); reset() }} className="btn-secondary px-3 py-2 text-xs shrink-0">Edit</button>
         </div>
-        <button onClick={() => { setOpen(true); reset() }} className="btn-secondary px-3 py-2 text-xs shrink-0">Edit</button>
+        <button onClick={syncNow} disabled={syncing} className="btn-primary w-full py-2.5 text-sm">
+          {syncing ? 'Syncing…' : '⟳ Sync now'}
+        </button>
+        {syncMsg && (
+          <p className={`text-xs ${syncMsg.startsWith('⚠') ? 'text-rose-400' : 'text-emerald-300'}`}>{syncMsg}</p>
+        )}
       </div>
     )
   }
