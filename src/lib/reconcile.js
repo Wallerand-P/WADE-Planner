@@ -85,13 +85,23 @@ export function reconcile({
       const slot = existing[i]
       if (slot && slot.manual_override) { skipped.push(slot.id); return }
       const athlete_id = athleteBySuffix[lap.suffix] ?? slot?.athlete_id ?? null
+      const actualStartMs = times[i].startMs
+      const actualEndMs = times[i].endMs
+      // Skip slots that already match — most laps are unchanged on every sync,
+      // and writing them anyway floods every phone with realtime updates.
+      if (slot && slot.confirmed && slot.athlete_id === athlete_id &&
+          slot.slot_order === i + 1 &&
+          Date.parse(slot.actual_start_time) === actualStartMs &&
+          Date.parse(slot.actual_end_time) === actualEndMs) {
+        return
+      }
       upserts.push({
         id: slot?.id ?? null,
         discipline: d.key,
         slot_order: i + 1,
         athlete_id,
-        actualStartMs: times[i].startMs,
-        actualEndMs: times[i].endMs,
+        actualStartMs,
+        actualEndMs,
         confirmed: true,
         ...(slot ? {} : { planned_duration_minutes: Math.max(1, Math.round(lap.splitSec / 60)) }),
       })

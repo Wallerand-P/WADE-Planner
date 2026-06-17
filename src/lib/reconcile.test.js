@@ -103,6 +103,48 @@ describe('reconcile — full race (44 laps)', () => {
   })
 })
 
+describe('reconcile — idempotency (no needless writes)', () => {
+  it('re-syncing already-synced slots produces zero upserts/deletes', () => {
+    const common = {
+      laps: detail.laps, klikegoDisciplines: detail.disciplines, appDisciplines: APP_DISC,
+      athleteBySuffix: SUFFIX, raceStartMs: RACE_START, raceFinished: true,
+    }
+    // First sync from an empty plan → 44 appends.
+    const first = reconcile({ ...common, slots: [] })
+    expect(first.upserts).toHaveLength(44)
+
+    // Materialise those as DB rows (confirmed, ISO timestamps), then sync again.
+    const synced = first.upserts.map((u, idx) => ({
+      id: `s-${idx}`, discipline: u.discipline, slot_order: u.slot_order,
+      athlete_id: u.athlete_id, confirmed: true, manual_override: false,
+      actual_start_time: new Date(u.actualStartMs).toISOString(),
+      actual_end_time: new Date(u.actualEndMs).toISOString(),
+    }))
+    const second = reconcile({ ...common, slots: synced })
+    expect(second.upserts).toHaveLength(0)
+    expect(second.deletes).toHaveLength(0)
+  })
+
+  it('writes only the slot that actually changed', () => {
+    const common = {
+      laps: detail.laps, klikegoDisciplines: detail.disciplines, appDisciplines: APP_DISC,
+      athleteBySuffix: SUFFIX, raceStartMs: RACE_START, raceFinished: true,
+    }
+    const first = reconcile({ ...common, slots: [] })
+    const synced = first.upserts.map((u, idx) => ({
+      id: `s-${idx}`, discipline: u.discipline, slot_order: u.slot_order,
+      athlete_id: u.athlete_id, confirmed: true, manual_override: false,
+      actual_start_time: new Date(u.actualStartMs).toISOString(),
+      actual_end_time: new Date(u.actualEndMs).toISOString(),
+    }))
+    // Corrupt one slot's athlete → only that one should be re-written.
+    synced[0].athlete_id = 'someone-else'
+    const second = reconcile({ ...common, slots: synced })
+    expect(second.upserts).toHaveLength(1)
+    expect(second.upserts[0].id).toBe('s-0')
+  })
+})
+
 describe('reconcile — progressive replay (laps appear over time)', () => {
   const replay = n => base({ laps: detail.laps.slice(0, n) })
 

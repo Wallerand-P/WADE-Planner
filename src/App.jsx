@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { useRaceStore } from './store/raceStore'
@@ -14,6 +14,10 @@ import { Analytics } from '@vercel/analytics/react'
 function RoomSync() {
   const navigate = useNavigate()
   const { roomCode, athletes, setRoom, setEvent, setAthletes, setSlots, clearRoom } = useRaceStore()
+  // Track the last status we acted on, so frequent room writes (e.g. the
+  // per-minute results_synced_at updates during live sync) don't re-navigate
+  // and yank users off Planning/Schedule. Only a real status change navigates.
+  const lastStatusRef = useRef(null)
 
   useEffect(() => {
     if (!roomCode) return
@@ -27,6 +31,7 @@ function RoomSync() {
 
       if (!room) { clearRoom(); navigate('/'); return }
 
+      lastStatusRef.current = room.status
       setRoom(room)
       setAthletes(aths ?? [])
       setSlots(slots ?? [])
@@ -49,10 +54,15 @@ function RoomSync() {
         event: 'UPDATE', schema: 'public', table: 'rooms',
         filter: `code=eq.${roomCode}`,
       }, payload => {
+        const prevStatus = lastStatusRef.current
+        lastStatusRef.current = payload.new.status
         setRoom(payload.new)
-        if (payload.new.status === 'racing') navigate('/race')
-        else if (payload.new.status === 'planning') navigate('/planning')
-        else if (payload.new.status === 'finished') navigate('/schedule')
+        // Only navigate on an actual status change — not on every room write.
+        if (payload.new.status !== prevStatus) {
+          if (payload.new.status === 'racing') navigate('/race')
+          else if (payload.new.status === 'planning') navigate('/planning')
+          else if (payload.new.status === 'finished') navigate('/schedule')
+        }
       })
       .subscribe()
 
