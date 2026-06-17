@@ -8,6 +8,7 @@ import {
   GROUP_META, eventDisciplines, formatCountdown, formatDuration,
 } from '../lib/raceUtils'
 import PointsChart from '../components/PointsChart'
+import LiveResultsConfig from '../components/LiveResultsConfig'
 
 // Compact "12s" / "3m" / "1h" age label for the freshness chip.
 function formatAge(ms) {
@@ -197,6 +198,10 @@ export default function LiveRacePage() {
             Started {dayjs(room.race_start_time).format('HH:mm')}
           </p>
         </div>
+
+        {/* Not connected yet — let the user wire up live results right here,
+            without going back to Planning (common right after the gun). */}
+        {!authority && <LiveResultsConfig />}
 
         {/* Live-results freshness chip (Authority mode) */}
         {authority && (
