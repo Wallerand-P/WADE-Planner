@@ -36,6 +36,7 @@ export default function PlanningPage() {
   const [launchTime, setLaunchTime] = useState('')
 
   const racing = room?.status === 'racing'
+  const authority = !!room?.results_confirmed // klikego is the source of truth
   const disciplines = eventDisciplines(event)
   const activeDisc = disciplines.find(d => d.key === activeTab) || disciplines[0]
   const meta = GROUP_META[activeDisc.group]
@@ -261,13 +262,25 @@ export default function PlanningPage() {
     if (!editAthlete || !editDuration) return
     const { data, error: err } = await supabase
       .from('schedule_slots')
-      .update({ athlete_id: editAthlete, planned_duration_minutes: Number(editDuration) })
+      // In Authority mode, a hand-edit locks the slot so live sync won't undo it.
+      .update({
+        athlete_id: editAthlete, planned_duration_minutes: Number(editDuration),
+        ...(authority ? { manual_override: true } : {}),
+      })
       .eq('id', slot.id)
       .select()
       .single()
     if (err) { setError(err.message); return }
     upsertSlot(data)
     setEditingId(null)
+  }
+
+  // Hand back a locked slot to live sync — the cron will re-take it next run.
+  async function revertToLive(slot) {
+    const { data, error: err } = await supabase
+      .from('schedule_slots').update({ manual_override: false }).eq('id', slot.id).select().single()
+    if (err) { setError(err.message); return }
+    upsertSlot(data)
   }
 
   function openLaunch() {
@@ -456,10 +469,21 @@ export default function PlanningPage() {
                     past
                   </span>
                 )}
+                {authority && slot.manual_override && (
+                  <span
+                    className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 bg-indigo-500/20 text-indigo-300"
+                    title="Hand-edited — live sync won't change it"
+                  >
+                    edited
+                  </span>
+                )}
                 <span className="text-white/45 text-sm font-mono mr-1 tabular-nums">
                   {formatDuration(slot.planned_duration_minutes)}
                 </span>
                 <div className="flex items-center gap-0.5 shrink-0">
+                  {authority && slot.manual_override && (
+                    <button onClick={() => revertToLive(slot)} className={`${btn} hover:bg-indigo-500/20 hover:text-indigo-200`} title="Revert to live results">↻</button>
+                  )}
                   <button onClick={() => moveSlot(slot, 'up')} disabled={i === 0} className={`${btn} hover:bg-white/10 hover:text-white`} title="Move up">↑</button>
                   <button onClick={() => moveSlot(slot, 'down')} disabled={i === disciplineSlots.length - 1} className={`${btn} hover:bg-white/10 hover:text-white`} title="Move down">↓</button>
                   <button onClick={() => startEdit(slot)} className={`${btn} hover:bg-white/10 hover:text-white`} title="Edit">✎</button>

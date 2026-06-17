@@ -9,6 +9,17 @@ import {
 } from '../lib/raceUtils'
 import PointsChart from '../components/PointsChart'
 
+// Compact "12s" / "3m" / "1h" age label for the freshness chip.
+function formatAge(ms) {
+  const s = Math.floor(ms / 1000)
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m`
+  return `${Math.floor(m / 60)}h`
+}
+
+const STALL_MS = 5 * 60_000 // no successful sync for 5 min → fall back to manual
+
 export default function LiveRacePage() {
   const navigate = useNavigate()
   const { roomCode, room, event, athletes, slots, setSlots, upsertSlot, setRoom } = useRaceStore()
@@ -84,6 +95,15 @@ export default function LiveRacePage() {
   const waiting = slotStartMs != null && now < slotStartMs
   const untilStart = waiting ? slotStartMs - now : 0
 
+  // Authority mode (klikego is the source of truth). The cron confirms loops
+  // automatically; manual confirm is hidden unless sync has stalled.
+  const authority = !!room?.results_confirmed
+  const syncedAtMs = room?.results_synced_at ? dayjs(room.results_synced_at).valueOf() : null
+  const syncAgeMs = syncedAtMs != null ? now - syncedAtMs : null
+  const stalled = authority && (syncAgeMs == null || syncAgeMs > STALL_MS)
+  // Show the manual confirm button when not in Authority, or when live sync stalled.
+  const showManualConfirm = !authority || stalled
+
   const currentIndex = currentSlot
     ? sortedSlots.findIndex(s => s.id === currentSlot.id)
     : sortedSlots.length
@@ -109,7 +129,12 @@ export default function LiveRacePage() {
 
       const { data, error } = await supabase
         .from('schedule_slots')
-        .update({ confirmed: true, actual_start_time: actualStartTime, actual_end_time: actualEndTime })
+        // In Authority mode a manual confirm is an override — lock it so the
+        // cron leaves it alone (until the user reverts to live on Planning).
+        .update({
+          confirmed: true, actual_start_time: actualStartTime, actual_end_time: actualEndTime,
+          ...(authority ? { manual_override: true } : {}),
+        })
         .eq('id', currentSlot.id)
         .select()
         .single()
@@ -172,6 +197,21 @@ export default function LiveRacePage() {
             Started {dayjs(room.race_start_time).format('HH:mm')}
           </p>
         </div>
+
+        {/* Live-results freshness chip (Authority mode) */}
+        {authority && (
+          <div className="flex justify-center -mt-1.5">
+            {stalled ? (
+              <span className="text-[11px] font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full">
+                ⚠ Live sync stalled{syncedAtMs != null ? ` · last ${formatAge(syncAgeMs)} ago` : ''} — confirm manually
+              </span>
+            ) : (
+              <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full">
+                ● Live · synced {formatAge(syncAgeMs)} ago
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Plan vs reality points chart (rooms launched before snapshots have none) */}
         {room.plan_snapshot && (
@@ -248,10 +288,20 @@ export default function LiveRacePage() {
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : showManualConfirm ? (
               <button onClick={startFinishEntry} className="btn-success w-full py-3.5 text-lg">
                 Confirm loop done ✓
               </button>
+            ) : (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-center gap-2 py-2.5 text-sm text-white/55">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Awaiting live result…
+                </div>
+                <button onClick={startFinishEntry} className="w-full py-2 text-xs text-white/45 hover:text-white/70 transition">
+                  Correct manually
+                </button>
+              </div>
             )}
           </div>
         ) : (
