@@ -121,3 +121,16 @@ alter table schedule_slots add column if not exists manual_override boolean not 
 alter publication supabase_realtime add table rooms;
 alter publication supabase_realtime add table athletes;
 alter publication supabase_realtime add table schedule_slots;
+
+-- Scheduled jobs (pg_cron). T24 is a 24h race; auto-finish any room still
+-- 'racing' 26h after its start (2h buffer) so stale races don't poll/linger
+-- forever. Pure SQL, runs in-DB; flipping status to 'finished' propagates to
+-- every phone via the realtime subscription above. (The klikego live-results
+-- poller is a second cron — see supabase/functions/sync-results/README.md.)
+create extension if not exists pg_cron;
+select cron.schedule(
+  'auto-end-races',
+  '* * * * *',
+  $$ update rooms set status = 'finished'
+     where status = 'racing' and race_start_time < now() - interval '26 hours' $$
+);
