@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
 import { supabase } from '../lib/supabase'
 import { useRaceStore } from '../store/raceStore'
 import {
@@ -31,8 +32,11 @@ export default function SetupPage() {
   const [athletes, setAthletes] = useState(() =>
     storeAthletes.length > 0 ? storeAthletes : defaultAthletes()
   )
+  // race_start_time is stored as UTC; the datetime-local input is in local time,
+  // so convert (don't just slice the UTC string, or the time drifts by the TZ
+  // offset on every round-trip).
   const [raceStart, setRaceStart] = useState(
-    room?.race_start_time ? room.race_start_time.slice(0, 16) : ''
+    room?.race_start_time ? dayjs(room.race_start_time).format('YYYY-MM-DDTHH:mm') : ''
   )
   const [eventId, setEventId] = useState(room?.event_id ?? '')
   const [events, setEvents] = useState([])
@@ -48,6 +52,15 @@ export default function SetupPage() {
   useEffect(() => {
     if (room?.event_id) setEventId(room.event_id)
   }, [room?.event_id])
+
+  // Seed the start time once the room hydrates async (mirrors event_id above).
+  // Only fill when empty so we never clobber an in-progress edit or the event
+  // default the user just picked.
+  useEffect(() => {
+    if (room?.race_start_time) {
+      setRaceStart(prev => prev || dayjs(room.race_start_time).format('YYYY-MM-DDTHH:mm'))
+    }
+  }, [room?.race_start_time])
 
   const event = events.find(e => e.id === eventId) || null
   const disciplines = eventDisciplines(event)
