@@ -441,7 +441,14 @@ export default function PlanningPage() {
                   <div className="flex gap-2">
                     <select
                       value={editAthlete}
-                      onChange={e => setEditAthlete(e.target.value)}
+                      onChange={e => {
+                        // Switching athlete reseeds the loop time to the new
+                        // athlete's reference; the user can still overwrite it.
+                        const id = e.target.value
+                        setEditAthlete(id)
+                        const a = athletes.find(x => x.id === id)
+                        if (a) setEditDuration(String(athleteLoopMinutes(a, activeDisc, disciplines)))
+                      }}
                       className="input-field flex-1 px-3 py-2"
                     >
                       {athletes.map(x => (
