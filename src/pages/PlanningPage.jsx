@@ -58,8 +58,14 @@ export default function PlanningPage() {
   // A loop is only a problem when it would START after the cut-off — a loop
   // already underway at the cut-off is fine and still counts, so running past
   // the line is NOT flagged.
-  const baseMs = dayjs(room?.race_start_time || 0).valueOf()
-  const startTimes = computeStartTimes(slots, room?.race_start_time || 0, disciplines)
+  // Anchor for theoretical start times: the real race start once launched, else
+  // the event's suggested start so planners can preview clock times before
+  // launching. The cut-off math below is anchor-relative (offsets cancel), so
+  // the ⚠ flags work with any anchor; only the clock display needs a real one.
+  const anchorStart = room?.race_start_time || event?.default_start || null
+  const baseMs = dayjs(anchorStart || 0).valueOf()
+  const startTimes = computeStartTimes(slots, anchorStart || 0, disciplines)
+  const showStartTimes = !!anchorStart
   const startsAfterCutoff = (slot, disc) => {
     const startMs = startTimes[slot.id]
     return startMs != null && startMs >= baseMs + disc.window.end * 60_000
@@ -413,6 +419,12 @@ export default function PlanningPage() {
       </div>
 
       {/* Slot list */}
+      {showStartTimes && disciplineSlots.length > 0 && (
+        <p className="text-[11px] text-white/35 mb-2 px-1">
+          <span className="text-sky-300/70 font-mono">HH:mm</span> = theoretical start, {racing ? 'from the' : 'assuming a'}{' '}
+          {dayjs(anchorStart).format('HH:mm')} {racing ? 'race start' : 'start'}
+        </p>
+      )}
       <div className="flex-1 space-y-2 mb-4 min-h-[80px]">
         {disciplineSlots.length === 0 ? (
           <p className="text-white/30 text-sm text-center py-6">
@@ -475,6 +487,14 @@ export default function PlanningPage() {
                     title="Hand-edited — live sync won't change it"
                   >
                     edited
+                  </span>
+                )}
+                {showStartTimes && (
+                  <span
+                    className="text-sky-300/70 text-xs font-mono tabular-nums shrink-0"
+                    title="Theoretical start time"
+                  >
+                    {dayjs(startTimes[slot.id]).format('HH:mm')}
                   </span>
                 )}
                 <span className="text-white/45 text-sm font-mono mr-1 tabular-nums">
