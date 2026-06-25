@@ -53,6 +53,17 @@ export default function SetupPage() {
     if (room?.event_id) setEventId(room.event_id)
   }, [room?.event_id])
 
+  // Adopt the real athletes once the store hydrates. The form may have rendered
+  // first with default athletes (the store loads async); without this, saving
+  // would treat every real athlete as "removed" and delete them and their slots.
+  // Only seed while the form is still untouched defaults (no persisted ids) so we
+  // never clobber an in-progress edit.
+  useEffect(() => {
+    if (storeAthletes.length > 0) {
+      setAthletes(prev => (prev.some(a => a.id) ? prev : storeAthletes))
+    }
+  }, [storeAthletes])
+
   // Seed the start time once the room hydrates async (mirrors event_id above).
   // Only fill when empty so we never clobber an in-progress edit or the event
   // default the user just picked.
@@ -95,7 +106,14 @@ export default function SetupPage() {
       // Remove athletes that were dropped (e.g. smaller team) and any slots
       // that referenced them, so the FK stays valid.
       const currentIds = new Set(athletes.filter(a => a.id).map(a => a.id))
-      const removed = (storeAthletes || []).filter(a => a.id && !currentIds.has(a.id))
+      // Safety net: if the store holds saved athletes but the form references
+      // none of them, the form never hydrated — saving here would delete the
+      // whole team and its schedule. Abort instead of wiping.
+      const storedWithIds = (storeAthletes || []).filter(a => a.id)
+      if (storedWithIds.length > 0 && currentIds.size === 0) {
+        throw new Error('Still loading your team — please wait a moment and try again.')
+      }
+      const removed = storedWithIds.filter(a => !currentIds.has(a.id))
       for (const r of removed) {
         await supabase.from('schedule_slots').delete().eq('athlete_id', r.id)
         await supabase.from('athletes').delete().eq('id', r.id)
