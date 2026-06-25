@@ -47,6 +47,13 @@
 }
 
 @layer components {
+  /* Hide the scrollbar on horizontally-scrollable chip rows */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   /* Translucent, hairline-bordered elevated surface */
   .card {
     @apply rounded-3xl border border-white/10 bg-white/[0.045] backdrop-blur-xl;

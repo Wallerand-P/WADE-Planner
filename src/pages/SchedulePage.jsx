@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { supabase } from '../lib/supabase'
@@ -13,6 +13,9 @@ import Layout from '../components/Layout'
 export default function SchedulePage() {
   const navigate = useNavigate()
   const { roomCode, room, event, athletes, slots, upsertSlot } = useRaceStore()
+
+  // Filter the schedule to a single athlete (null = whole team)
+  const [filterAthlete, setFilterAthlete] = useState(null)
 
   // Stay in sync as loops are confirmed / the plan is edited
   useEffect(() => {
@@ -62,8 +65,40 @@ export default function SchedulePage() {
             </p>
           )}
 
+          {/* Athlete filter — show the whole team or just one athlete's loops */}
+          <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1 no-scrollbar">
+            <button
+              onClick={() => setFilterAthlete(null)}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all active:scale-95 ${
+                filterAthlete === null
+                  ? 'bg-white/90 text-black border-white/90'
+                  : 'text-white/55 border-white/15 hover:text-white/85'
+              }`}
+            >
+              All
+            </button>
+            {athletes.map(a => {
+              const active = filterAthlete === a.id
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setFilterAthlete(active ? null : a.id)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all active:scale-95 ${
+                    active ? 'text-white border-white/40 bg-white/10' : 'text-white/55 border-white/15 hover:text-white/85'
+                  }`}
+                  style={active ? { borderColor: a.color } : undefined}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: a.color }} />
+                  {a.name}
+                </button>
+              )
+            })}
+          </div>
+
           {disciplines.map(disc => {
-            const dslots = sorted.filter(s => s.discipline === disc.key)
+            const dslots = sorted.filter(
+              s => s.discipline === disc.key && (!filterAthlete || s.athlete_id === filterAthlete)
+            )
             if (dslots.length === 0) return null
             const m = GROUP_META[disc.group]
             return (
