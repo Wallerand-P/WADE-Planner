@@ -103,16 +103,24 @@ export default function SetupPage() {
     setSaving(true)
     setError('')
     try {
-      // Remove athletes that were dropped (e.g. smaller team) and any slots
-      // that referenced them, so the FK stays valid.
       const currentIds = new Set(athletes.filter(a => a.id).map(a => a.id))
-      // Safety net: if the store holds saved athletes but the form references
-      // none of them, the form never hydrated — saving here would delete the
-      // whole team and its schedule. Abort instead of wiping.
-      const storedWithIds = (storeAthletes || []).filter(a => a.id)
-      if (storedWithIds.length > 0 && currentIds.size === 0) {
+
+      // Authoritative guard against duplicates/wipes: the in-memory store can be
+      // empty because this device opened Setup before it hydrated (or it's a
+      // second phone on the shared room). Saving the default form would then
+      // insert a whole duplicate team over the real one — or, if we matched the
+      // store, delete the real team. Check the DB directly and refuse to save a
+      // form that references none of the athletes that already exist there.
+      const { data: dbAthletes, error: fetchErr } = await supabase
+        .from('athletes').select('id').eq('room_code', roomCode)
+      if (fetchErr) throw fetchErr
+      if ((dbAthletes?.length ?? 0) > 0 && currentIds.size === 0) {
         throw new Error('Still loading your team — please wait a moment and try again.')
       }
+
+      // Remove athletes that were dropped (e.g. smaller team) and any slots
+      // that referenced them, so the FK stays valid.
+      const storedWithIds = (storeAthletes || []).filter(a => a.id)
       const removed = storedWithIds.filter(a => !currentIds.has(a.id))
       for (const r of removed) {
         await supabase.from('schedule_slots').delete().eq('athlete_id', r.id)
