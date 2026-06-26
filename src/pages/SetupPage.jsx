@@ -119,10 +119,22 @@ export default function SetupPage() {
         await supabase.from('athletes').delete().eq('id', r.id)
       }
 
+      // De-dup guard: a stale, never-hydrated default row can linger in the form
+      // next to the real (id-bearing) athletes — e.g. when the store hydrates late
+      // or two devices edit the same room. Since athletes are matched by id, such a
+      // row would be inserted as a duplicate. Drop any id-less row that is still a
+      // pristine default AND shares a name with an athlete we're keeping by id.
+      const keptNames = new Set(athletes.filter(a => a.id).map(a => a.name))
+      const isPristineDefault = a =>
+        !a.id && DEFAULT_NAMES.includes(a.name) &&
+        Number(a.swim_pace) === 20 && Number(a.bike_pace) === 40 && Number(a.run_pace) === 30 &&
+        (a.bike2_pace == null || a.bike2_pace === '')
+      const toPersist = athletes.filter(a => !(isPristineDefault(a) && keptNames.has(a.name)))
+
       // Update existing athletes; insert new ones — positions follow the list.
       const saved = []
-      for (let i = 0; i < athletes.length; i++) {
-        const a = athletes[i]
+      for (let i = 0; i < toPersist.length; i++) {
+        const a = toPersist[i]
         if (a.id) {
           const { error: upErr } = await supabase.from('athletes')
             .update({ name: a.name, color: a.color, position: i + 1, ...paceCols(a) })
