@@ -67,13 +67,14 @@ describe('reconcile — full race (44 laps)', () => {
     expect(swim1.confirmed).toBe(true)
   })
 
-  it('anchors swim at the gun and bike after swim ends', () => {
+  it('anchors swim at the gun and bike at its window-open (4h), not after swim overrun', () => {
     const swim1 = r.upserts.find(u => u.discipline === 'swim' && u.slot_order === 1)
     expect(swim1.actualEndMs).toBe(RACE_START + 1442 * 1000) // 00:24:02
 
-    // bike starts after swim's last cumulative (swim ran past the 4h window)
-    const swimLastCum = 4 * 3600 + 7 * 60 + 23 // 04:07:23
-    const bikeStart = RACE_START + swimLastCum * 1000
+    // klikego measures each discipline's cumulative from its window-open, so bike
+    // starts at race-hour 4 even though swimming overran to 04:07:23 — bike's long
+    // first lap absorbs the overrun. (Chaining onto the swim end would drift late.)
+    const bikeStart = RACE_START + 240 * 60 * 1000
     const bike1 = r.upserts.find(u => u.discipline === 'bike' && u.slot_order === 1)
     expect(bike1.actualStartMs).toBe(bikeStart)
     expect(bike1.actualEndMs).toBe(bikeStart + (1 * 3600 + 2 * 60) * 1000) // bike lap1 cum 01:02:00

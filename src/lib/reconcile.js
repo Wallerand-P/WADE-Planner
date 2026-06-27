@@ -5,8 +5,8 @@
 // Rules (see docs/live-results-sync.md):
 //  - klikego sections map 1:1 to app disciplines by chronological order.
 //  - Laps key to slots by discipline + order; athlete is overwritten from klikego.
-//  - Times are anchored: each discipline starts at max(structural window, prev
-//    discipline's actual end), then + the per-discipline cumulative.
+//  - Times are anchored at each discipline's structural window-open (klikego's
+//    cumulative is window-relative), then + the per-discipline cumulative.
 //  - More laps than planned → append; fewer → drop surplus only once the
 //    discipline is "closed" (a later discipline has laps, or the race finished).
 //  - manual_override slots are never written or deleted (the lock wins).
@@ -48,18 +48,23 @@ export function reconcile({
   }
   for (const k of Object.keys(byKey)) byKey[k].sort((a, b) => a.tour - b.tour)
 
-  // Anchor each discipline's start (chain + structural clamp) → absolute lap times
+  // Anchor each discipline at its structural window-open → absolute lap times.
+  // klikego reports each discipline's cumulative relative to that discipline's
+  // window, NOT to the previous discipline's actual end. When an earlier
+  // discipline overruns its window (e.g. swimming runs past race-hour 4), the
+  // next discipline's clock still starts at its window-open and its long first
+  // lap absorbs the overrun. So we anchor at the window-open; chaining onto the
+  // previous discipline's overrun would push every later loop late (~the overrun).
+  // See docs/live-results-sync.md.
   const lapTimes = {}
-  let prevEndMs = raceStartMs
   for (const d of appDisciplines) {
     const ls = byKey[d.key]
-    if (!ls || ls.length === 0) continue // no laps yet → don't advance the cursor
-    const startMs = Math.max(winStartMs[d.key], prevEndMs)
+    if (!ls || ls.length === 0) continue
+    const startMs = winStartMs[d.key]
     lapTimes[d.key] = ls.map((lap, i) => ({
       startMs: startMs + (i > 0 ? ls[i - 1].cumSec * 1000 : 0),
       endMs: startMs + lap.cumSec * 1000,
     }))
-    prevEndMs = startMs + ls[ls.length - 1].cumSec * 1000
   }
 
   // Existing slots grouped + ordered per discipline
