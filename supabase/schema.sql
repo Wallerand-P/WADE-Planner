@@ -38,7 +38,10 @@ alter table events add column if not exists default_start text;
 
 insert into events (id, name, swim_km, bike_km, run_km, swim_points, bike_points, run_points, bike2_km, bike2_points, bike_split_min, default_start)
 values
-  ('t24-breizh-2026', 'T24 Breizh 2026', 1, 15.7, 5.2, 15, 16, 24, null, null, null, '2026-06-27T13:00'),
+  -- T24 Breizh's klikego page emits 4 sections (Natation/Vélo/Vélo 2/Course);
+  -- the short Vélo 2 (1km/1pt) must be modelled or live-results sync fails the
+  -- 1:1 discipline-count check. bike_split_min=950 makes Vélo 2 a tiny tail.
+  ('t24-breizh-2026', 'T24 Breizh 2026', 1, 15.7, 6, 15, 16, 24, 1, 1, 950, '2026-06-27T13:00'),
   ('t24-re-2026',     'T24 Ré 2026',     1, 20.9, 7,   15, 21, 27, 15.9, 16,   600,  '2026-06-13T13:00')
 on conflict (id) do update set
   name = excluded.name,
